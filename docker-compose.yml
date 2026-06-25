@@ -1,0 +1,34 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    env_file:
+      - .env
+    volumes:
+      - weights:/app/assets/weights
+    networks:
+      - speech-net
+    restart: unless-stopped
+
+  # Optional NGINX reverse proxy — only needed for VPS/self-hosted.
+  # Enable with: docker compose --profile nginx up
+  nginx:
+    image: nginx:alpine
+    profiles: [nginx]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - speech-net
+
+volumes:
+  weights:
+
+networks:
+  speech-net:
+    driver: bridge

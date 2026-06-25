@@ -1,0 +1,49 @@
+[project]
+name = "speech-server"
+version = "0.1.0"
+description = "Readium Speech Server — remote TTS HTTP service"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "httpx>=0.27.0",
+    "anyio>=4.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "ruff>=0.9.0",
+    "mypy>=1.10.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m 'not integration and not slow'"
+markers = [
+    "unit: fast unit tests",
+    "contract: provider contract suite",
+    "route: route/endpoint tests",
+    "integration: requires real models or live APIs (excluded by default)",
+    "slow: long-running tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+explicit_package_bases = true
