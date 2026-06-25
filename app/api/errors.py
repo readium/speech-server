@@ -76,7 +76,9 @@ def _error_response(
     body = ErrorResponse(error=ErrorBody(code=code, message=message, detail=detail))
     return JSONResponse(status_code=status, content=body.model_dump())
 
+
 # --- error handlers ---
+
 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
