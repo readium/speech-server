@@ -216,3 +216,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific
+assets/weights/
+assets/voices/
+.env
+
+# Claude Code project settings (local overrides only; settings.json is committed)
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+**/.DS_Store
