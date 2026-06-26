@@ -57,8 +57,9 @@ async def synthesize(
     synthesizer: SynthesizerDep,
 ) -> StreamingResponse:
     audio_bytes, content_type = await synthesizer.synthesize(request)
+    ext = content_type.split("/")[-1].replace("mpeg", "mp3").replace("ogg", "ogg")
     return StreamingResponse(
         iter([audio_bytes]),
         media_type=content_type,
-        headers={"Content-Disposition": "attachment; filename=speech.wav"},
+        headers={"Content-Disposition": f"attachment; filename=speech.{ext}"},
     )

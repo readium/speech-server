@@ -6,6 +6,8 @@ class ProviderRegistry:
         self._providers: dict[str, TTSProvider] = {}
 
     def register(self, provider: TTSProvider) -> None:
+        if provider.id in self._providers:
+            raise ValueError(f"Provider '{provider.id}' is already registered")
         self._providers[provider.id] = provider
 
     def get(self, provider_id: str) -> TTSProvider | None:

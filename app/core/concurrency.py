@@ -1,10 +1,12 @@
 import asyncio
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar
 
 import anyio
 
 _semaphore: asyncio.Semaphore | None = None
+
+T = TypeVar("T")
 
 
 def init_semaphore(max_concurrent: int) -> None:
@@ -12,7 +14,7 @@ def init_semaphore(max_concurrent: int) -> None:
     _semaphore = asyncio.Semaphore(max_concurrent)
 
 
-async def run_inference[T](fn: Callable[..., T], *args: Any) -> T:
+async def run_inference(fn: Callable[..., T], *args: Any) -> T:
     """Offload blocking CPU-bound work to a thread, bounded by the concurrency semaphore.
 
     Callers needing kwargs should wrap with functools.partial before passing.

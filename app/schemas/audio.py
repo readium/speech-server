@@ -18,6 +18,8 @@ class SynthesisParams(BaseModel):
 
 
 class AudioResult(BaseModel):
-    pcm: bytes
+    pcm: bytes | None = None  # raw PCM; None when encoded is set
+    encoded: bytes | None = None  # pre-encoded bytes (commercial providers)
+    format: str | None = None  # e.g. "mp3", "wav"; set when encoded is used
     sample_rate: int
     timing_marks: list[TimingMark] | None = None  # scaffolded; unused until Phase 3+
