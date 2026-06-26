@@ -1,4 +1,4 @@
-.PHONY: dev sync test test-integration lint fmt typecheck build run stop clean
+.PHONY: dev sync test test-integration lint fmt typecheck ci build run stop clean
 
 dev:
 	uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -20,6 +20,8 @@ fmt:
 
 typecheck:
 	uv run mypy app/
+
+ci: lint fmt typecheck test
 
 build:
 	docker build -t speech-server .

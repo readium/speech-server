@@ -60,5 +60,10 @@ class Synthesizer:
         )
 
         result: AudioResult = await provider.synthesize(params)
+        if result.encoded is not None:
+            content_type = f"audio/{result.format or 'wav'}"
+            return result.encoded, content_type
+        if result.pcm is None:
+            raise ValueError("AudioResult must set either pcm or encoded")
         wav_bytes = _pcm_to_wav(result.pcm, result.sample_rate)
         return wav_bytes, "audio/wav"
