@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Validate required env vars
-required_vars=(HOST PORT WORKERS)
-for var in "${required_vars[@]}"; do
-  if [[ -z "${!var:-}" ]]; then
-    echo "ERROR: Required env var $var is not set" >&2
-    exit 1
-  fi
-done
+# Only fail on genuinely required vars (api key when auth is enabled)
+if [[ "${API_KEY_ENABLED:-false}" == "true" && -z "${API_KEY:-}" ]]; then
+  echo "ERROR: API_KEY must be set when API_KEY_ENABLED=true" >&2
+  exit 1
+fi
 
-# Phase 2+: fetch weights if not baked
+# Phase 2+: ensure model weights are present
 # python /app/scripts/fetch_weights.py
 
 exec uvicorn app.main:app \
-  --host "${HOST}" \
-  --port "${PORT}" \
-  --workers "${WORKERS}"
+  --host "${HOST:-0.0.0.0}" \
+  --port "${PORT:-8000}" \
+  --workers "${WORKERS:-1}"
