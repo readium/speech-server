@@ -1,27 +1,37 @@
 # syntax=docker/dockerfile:1
+
+# ── Stage 1: install dependencies ─────────────────────────────────────────────
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
-WORKDIR /build
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app/ ./app/
 
-# Runtime build stage 
-FROM python:3.12-slim-bookworm AS runtime
+# ── Stage 2: runtime ──────────────────────────────────────────────────────────
+# Same base as builder so .venv Python symlinks resolve correctly.
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
 
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --system --create-home --uid 1001 appuser
 
 WORKDIR /app
-COPY --from=builder /build/.venv /app/.venv
-COPY --from=builder /build/app /app/app
+
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/app  /app/app
 COPY scripts/ /app/scripts/
 
-RUN chmod +x /app/scripts/entrypoint.sh && \
-    mkdir -p /app/assets/weights /app/assets/voices && \
-    chown -R appuser:appuser /app
+RUN chmod +x /app/scripts/entrypoint.sh \
+    && mkdir -p /app/assets/weights /app/assets/voices \
+    && chown -R appuser:appuser /app
 
 ENV PATH="/app/.venv/bin:$PATH"
 
