@@ -25,23 +25,26 @@ class Settings(BaseSettings):
     # Concurrency
     max_concurrent_syntheses: int = Field(default=2, ge=1)
 
-    # Cache (in-memory only for v1)
-    cache_enabled: bool = True
-    cache_max_items: int = Field(default=256, ge=1)
-
     # Providers
     enabled_providers: str = "pocket"
     default_provider: str = "pocket"
 
+    # Languages (global; providers filter to their supported subset via active_languages())
+    # Stored as comma-separated string to avoid pydantic-settings JSON-parsing list fields from env.
+    languages: str = "en"
+    hf_token: str = ""
+
+    @property
+    def language_list(self) -> list[str]:
+        langs = [v.strip().lower() for v in self.languages.split(",") if v.strip()]
+        return langs or ["en"]
+
     # PocketTTS
-    pocket_weights_dir: str = "/app/assets/weights"
     pocket_default_voice: str = "alba"
 
     # Audio / ffmpeg
+    max_text_length: int = Field(default=2000, ge=1)
     ffmpeg_bin: str = "ffmpeg"
-    default_audio_format: str = "mp3"
-    default_sample_rate: int = Field(default=24000, ge=1)
-    http_timeout_seconds: int = Field(default=30, ge=1)
 
     @model_validator(mode="after")
     def validate_auth_and_providers(self) -> "Settings":

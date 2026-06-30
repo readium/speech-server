@@ -16,14 +16,15 @@ class VoiceCatalog:
         for provider in self._registry.all():
             for voice in await provider.list_voices():
                 voices.append(voice)
-                index[voice.voiceURI] = (provider, voice.engineVoiceId)
+                index[voice.voiceURI] = (provider, voice.voiceURI)
         self._voices = voices
         self._index = index
 
     def list(self, language: str | None = None, provider: str | None = None) -> list[Voice]:
         result = self._voices
         if language:
-            result = [v for v in result if v.language.lower().startswith(language.lower())]
+            lang_prefix = language.split("-")[0].lower()
+            result = [v for v in result if v.language.split("-")[0].lower() == lang_prefix]
         if provider:
             result = [v for v in result if v.provider == provider]
         return result

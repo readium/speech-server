@@ -11,6 +11,18 @@ from app.main import create_app
 from app.providers.fake import FakeProvider
 
 
+@pytest.fixture(autouse=True)
+def mock_ffmpeg(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.drivers.ffmpeg as ffmpeg_mod
+
+    monkeypatch.setattr(ffmpeg_mod, "is_available", lambda *_: True)
+
+    async def _fake_encode(pcm: bytes, sample_rate: int, format: str, **kwargs: object) -> bytes:
+        return b"\x00" * 200
+
+    monkeypatch.setattr(ffmpeg_mod, "encode", _fake_encode)
+
+
 @pytest.fixture
 def app() -> FastAPI:
     return create_app()

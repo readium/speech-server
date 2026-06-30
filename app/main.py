@@ -11,24 +11,27 @@ from app.core.concurrency import init_semaphore
 from app.core.registry import ProviderRegistry
 from app.core.voice_catalog import VoiceCatalog
 from app.logging.config import RequestLoggingMiddleware, configure_logging
-from app.providers.fake import FakeProvider
+from app.providers.pocket_tts import PocketTTSProvider
 
 
 def _build_registry() -> ProviderRegistry:
     registry = ProviderRegistry()
     enabled = {p.strip() for p in settings.enabled_providers.split(",")}
-    if "fake" in enabled:
-        registry.register(FakeProvider())
-    # Phase 2+: pocket, kokoro, elevenlabs, azure registered here
+    if "pocket" in enabled:
+        registry.register(PocketTTSProvider())
     return registry
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    configure_logging(settings.log_level)
+    log_listener = configure_logging(settings.log_level)
     init_semaphore(settings.max_concurrent_syntheses)
 
     registry = _build_registry()
+
+    for provider in registry.all():
+        await provider.load()
+
     catalog = VoiceCatalog(registry)
     await catalog.load()
 
@@ -37,6 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.ready = True
     yield
     app.state.ready = False
+    log_listener.stop()  # flush remaining records before process exits
 
 
 def create_app() -> FastAPI:

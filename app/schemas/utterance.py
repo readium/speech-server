@@ -1,6 +1,16 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.domain.enums import AudioFormat
+
+
+class OutputConfig(BaseModel):
+    """Requested output parameters — nested under 'output' in the API body."""
+
+    format: AudioFormat = AudioFormat.MP3
+    bitrate: int | None = None  # kbps; only meaningful for mp3/opus
+    sample_rate: int | None = None
+    speed: float = 1.0
+    pitch: float | None = None
 
 
 class Utterance(BaseModel):
@@ -14,11 +24,8 @@ class Utterance(BaseModel):
 
 class SynthesizeRequest(Utterance):
     voice: str  # voiceURI — required
-    format: AudioFormat = AudioFormat.MP3
-    sampleRate: int | None = None
-    bitrate: int | None = None  # kbps; meaningful for mp3/opus only
-    speed: float = 1.0  # rate multiplier
-    pitch: float | None = None
-    prev_utterance: str | None = None  # preceding plain-text for prosody context
-    next_utterance: str | None = None  # following plain-text for prosody context
-    publication_id: str | None = None  # URI/ID for cache-key scoping (Redis in v2)
+    prev_utterance: str | None = None  # preceding text/ID for prosody context
+    next_utterance: str | None = None  # following text/ID for prosody context
+    boundary: bool = False  # if true, response is JSON with base64 audio + timing marks
+    output: OutputConfig = Field(default_factory=OutputConfig)
+    publication_id: str | None = None  # server extension: cache-key scope

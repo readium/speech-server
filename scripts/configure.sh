@@ -1,0 +1,451 @@
+#!/usr/bin/env bash
+# configure.sh — Readium Speech Server setup & management wizard
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="$REPO_ROOT/.env"
+
+# ── Colours ───────────────────────────────────────────────────────────────────
+B=$'\033[1m' R=$'\033[0m' G=$'\033[32m' Y=$'\033[33m' C=$'\033[36m' RED=$'\033[31m'
+
+ok()   { printf '%s✓%s %s\n' "$G" "$R" "$*"; }
+warn() { printf '%s!%s %s\n' "$Y" "$R" "$*"; }
+err()  { printf '%s✗%s %s\n' "$RED" "$R" "$*" >&2; }
+hdr()  { printf '\n%s── %s%s\n\n' "$B" "$*" "$R"; }
+
+# ── Portable .env read/write ──────────────────────────────────────────────────
+get_env() {
+    grep -E "^${1}=" "$ENV_FILE" 2>/dev/null | cut -d= -f2- || true
+}
+
+set_env() {
+    local key="$1" val="$2" tmp
+    if [[ ! -f "$ENV_FILE" ]]; then
+        printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
+        return
+    fi
+    if grep -qE "^${key}=" "$ENV_FILE"; then
+        tmp=$(mktemp)
+        while IFS= read -r line; do
+            if [[ "$line" == "${key}="* ]]; then
+                printf '%s=%s\n' "$key" "$val"
+            else
+                printf '%s\n' "$line"
+            fi
+        done < "$ENV_FILE" > "$tmp"
+        mv "$tmp" "$ENV_FILE"
+    else
+        printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
+    fi
+}
+
+# ── Language helpers ──────────────────────────────────────────────────────────
+ALL_LANGS=(en fr it de es pt)
+
+lang_name() {
+    case "$1" in
+        en) echo "English" ;;    fr) echo "French" ;;
+        it) echo "Italian" ;;    de) echo "German" ;;
+        es) echo "Spanish" ;;    pt) echo "Portuguese" ;;
+        *)  echo "$1" ;;
+    esac
+}
+
+current_langs() {
+    local raw
+    raw=$(get_env LANGUAGES)
+    echo "${raw:-en}"
+}
+
+lang_list_to_set() {
+    local out="" p
+    IFS=',' read -ra parts <<< "$1"
+    for p in "${parts[@]}"; do
+        p="${p// /}"
+        if [[ -n "$p" ]] && ! echo ",${out}," | grep -qF ",${p},"; then
+            out="${out:+${out},}${p}"
+        fi
+    done
+    echo "$out"
+}
+
+show_lang_menu() {
+    local current="$1"
+    printf '  Supported languages (PocketTTS — ~240 MB each):\n\n'
+    local i=1
+    for code in "${ALL_LANGS[@]}"; do
+        local marker="  "
+        if echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
+            marker="${G}✓${R}"
+        fi
+        printf '  %s %d) %s — %s\n' "$marker" "$i" "$code" "$(lang_name "$code")"
+        i=$((i+1))
+    done
+    printf '\n'
+}
+
+num_to_lang() {
+    local n="$1" i=1
+    for code in "${ALL_LANGS[@]}"; do
+        [[ "$n" == "$i" ]] && { echo "$code"; return; }
+        i=$((i+1))
+    done
+}
+
+# ── Docker check ──────────────────────────────────────────────────────────────
+require_docker() {
+    if ! command -v docker &>/dev/null; then
+        err "Docker is not installed."
+        printf '  Install: https://www.docker.com/products/docker-desktop\n\n'
+        exit 1
+    fi
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Actions
+# ══════════════════════════════════════════════════════════════════════════════
+
+do_first_setup() {
+    require_docker
+
+    if [[ -f "$ENV_FILE" ]]; then
+        warn ".env already exists."
+        printf '\n  1) Overwrite\n  2) Backup (.env → .env.backup) then overwrite\n  3) Cancel\n\n'
+        printf 'Choice [default: 3]: '
+        read -r CHOICE
+        case "${CHOICE:-3}" in
+            1) ;;
+            2) cp "$ENV_FILE" "${ENV_FILE}.backup"
+               ok "Backed up → .env.backup" ;;
+            *) printf 'Cancelled.\n'; return ;;
+        esac
+    fi
+
+    hdr "Step 1/3 — Languages"
+    show_lang_menu ""
+    printf 'Enter numbers separated by spaces [default: 1 = English]: '
+    read -r LANG_INPUT
+    LANG_INPUT="${LANG_INPUT:-1}"
+
+    LANGS=""
+    for num in $LANG_INPUT; do
+        code=$(num_to_lang "$num")
+        if [[ -n "$code" ]]; then
+            LANGS="${LANGS:+${LANGS},}${code}"
+        else
+            warn "Unknown selection \"$num\" — skipped"
+        fi
+    done
+    [[ -z "$LANGS" ]] && LANGS="en"
+    LANGS=$(lang_list_to_set "$LANGS")
+    ok "Languages: $LANGS"
+
+    hdr "Step 2/3 — Workers"
+    printf 'RAM per worker = ~240 MB × number of languages loaded\n'
+    printf 'WORKERS [default: 1]: '
+    read -r WORKERS
+    WORKERS="${WORKERS:-1}"
+    case "$WORKERS" in
+        ''|*[!0-9]*|0) warn "Invalid — using 1"; WORKERS=1 ;;
+    esac
+    ok "Workers: $WORKERS"
+
+    hdr "Step 3/3 — HuggingFace Token"
+    printf 'Required to download voice models from HuggingFace.\n'
+    printf 'Get a free read-only token at: https://huggingface.co/settings/tokens\n\n'
+    printf 'HF_TOKEN (input hidden): '
+    read -rs HF_TOKEN
+    printf '\n'
+    if [[ -z "$HF_TOKEN" ]]; then
+        warn "No token entered — model downloads may be rate-limited until HF_TOKEN is set."
+    else
+        ok "Token recorded"
+    fi
+
+    cat > "$ENV_FILE" << 'EOF'
+# Readium Speech Server — environment variables
+# Generated by configure.sh — edit manually or re-run configure.sh
+
+# ── Server ──
+APP_ENV=development
+LOG_LEVEL=INFO
+HOST=0.0.0.0
+PORT=8000
+API_V1_PREFIX=/v1
+WORKERS=1
+
+# ── Auth (off by default) ──
+API_KEY_ENABLED=false
+API_KEY=
+
+# ── Concurrency ──
+MAX_CONCURRENT_SYNTHESES=2
+
+# ── Languages (comma-separated BCP-47 prefixes; PocketTTS: en,fr,it,de,es,pt) ──
+# Each language downloads ~240 MB on first start into the weights Docker volume.
+LANGUAGES=en
+HF_TOKEN=
+
+# ── Providers ──
+ENABLED_PROVIDERS=pocket
+DEFAULT_PROVIDER=pocket
+
+# ── PocketTTS ──
+POCKET_DEFAULT_VOICE=alba
+
+# ── Audio / ffmpeg ──
+FFMPEG_BIN=ffmpeg
+MAX_TEXT_LENGTH=2000
+EOF
+    chmod 600 "$ENV_FILE"
+    set_env LANGUAGES "$LANGS"
+    set_env WORKERS   "$WORKERS"
+    set_env HF_TOKEN  "$HF_TOKEN"
+
+    ok "Written → .env"
+    _print_next_steps "$LANGS"
+}
+
+do_add_language() {
+    _require_env
+    local current
+    current=$(current_langs)
+
+    hdr "Add Language"
+    show_lang_menu "$current"
+    printf 'Number to add: '
+    read -r NUM
+    code=$(num_to_lang "$NUM")
+    if [[ -z "$code" ]]; then
+        err "Invalid selection."
+        return
+    fi
+    if echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
+        warn "$code ($(lang_name "$code")) already in LANGUAGES=$current"
+        return
+    fi
+    local new
+    new=$(lang_list_to_set "${current},${code}")
+    set_env LANGUAGES "$new"
+    ok "LANGUAGES updated → $new"
+    printf '\n%sRestart the server to load the new language:%s\n' "$B" "$R"
+    printf '  make stop && make start\n\n'
+    printf '%sNote:%s first start downloads ~240 MB for %s%s%s. Cached after that.\n\n' \
+        "$Y" "$R" "$B" "$code" "$R"
+}
+
+do_remove_language() {
+    _require_env
+    local current
+    current=$(current_langs)
+    IFS=',' read -ra parts <<< "$current"
+
+    if [[ ${#parts[@]} -eq 1 ]]; then
+        err "Only one language configured (${current}). Cannot remove — server needs at least one."
+        return
+    fi
+
+    hdr "Remove Language"
+    show_lang_menu "$current"
+    printf 'Number to remove: '
+    read -r NUM
+    code=$(num_to_lang "$NUM")
+    if [[ -z "$code" ]]; then
+        err "Invalid selection."; return
+    fi
+    if ! echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
+        warn "$code is not in LANGUAGES=$current"
+        return
+    fi
+
+    local new="" p2
+    for p2 in "${parts[@]}"; do
+        [[ "$p2" != "$code" ]] && new="${new:+${new},}${p2}"
+    done
+    set_env LANGUAGES "$new"
+    ok "LANGUAGES updated → $new"
+    printf '\n%sNote:%s model files for %s remain in the Docker volume (disk space not freed).\n' \
+        "$Y" "$R" "$code"
+    printf 'To reclaim disk: %smake stop && docker volume rm speech-server_weights_cache && make start%s\n' \
+        "$C" "$R"
+    printf '(Re-downloads active languages: %s)\n\n' "$new"
+    printf 'Restart to apply: %smake stop && make start%s\n\n' "$C" "$R"
+}
+
+do_change_workers() {
+    _require_env
+    local current
+    current=$(get_env WORKERS)
+    current="${current:-1}"
+
+    hdr "Change Workers"
+    local langs
+    langs=$(current_langs)
+    local lang_count
+    lang_count=$(echo "$langs" | tr ',' '\n' | wc -l | tr -d ' ')
+    printf 'Current: %s%s%s workers | RAM per worker: ~%d MB (%d language(s) × 240 MB)\n\n' \
+        "$C" "$current" "$R" $((lang_count * 240)) "$lang_count"
+    printf 'New WORKERS [current: %s]: ' "$current"
+    read -r WORKERS
+    WORKERS="${WORKERS:-$current}"
+    case "$WORKERS" in
+        ''|*[!0-9]*|0) warn "Invalid — keeping $current"; return ;;
+    esac
+    set_env WORKERS "$WORKERS"
+    ok "WORKERS updated → $WORKERS"
+    local total_ram=$(( lang_count * 240 * WORKERS ))
+    printf 'Estimated RAM: ~%d MB (%d workers × %d languages × 240 MB)\n\n' \
+        "$total_ram" "$WORKERS" "$lang_count"
+    printf 'Restart to apply: %smake stop && make start%s\n\n' "$C" "$R"
+}
+
+do_update_token() {
+    _require_env
+
+    hdr "Update HF_TOKEN"
+    printf 'Get a free read-only token at: https://huggingface.co/settings/tokens\n\n'
+    printf 'New HF_TOKEN (input hidden): '
+    read -rs HF_TOKEN
+    printf '\n'
+    [[ -z "$HF_TOKEN" ]] && { warn "Empty token — no change made."; return; }
+    set_env HF_TOKEN "$HF_TOKEN"
+    ok "HF_TOKEN updated in .env"
+    printf 'Takes effect on next container start.\n\n'
+}
+
+do_show_config() {
+    _require_env
+
+    hdr "Current Configuration"
+    local langs workers hf_token key_enabled api_key max_syn
+    langs=$(current_langs)
+    workers=$(get_env WORKERS); workers="${workers:-1}"
+    hf_token=$(get_env HF_TOKEN)
+    key_enabled=$(get_env API_KEY_ENABLED); key_enabled="${key_enabled:-false}"
+    max_syn=$(get_env MAX_CONCURRENT_SYNTHESES); max_syn="${max_syn:-2}"
+
+    printf '  %-30s %s%s%s\n' "Languages:" "$C" "$langs" "$R"
+
+    local lang_count
+    lang_count=$(echo "$langs" | tr ',' '\n' | wc -l | tr -d ' ')
+    local total_ram=$(( lang_count * 240 * workers ))
+
+    printf '  %-30s %s%s%s  (~%d MB total RAM)\n' \
+        "Workers:" "$C" "$workers" "$R" "$total_ram"
+    printf '  %-30s %s%s%s\n' "Max concurrent syntheses:" "$C" "$max_syn" "$R"
+
+    if [[ -n "$hf_token" ]]; then
+        local masked="${hf_token:0:4}****${hf_token: -4}"
+        printf '  %-30s %s%s%s\n' "HF_TOKEN:" "$C" "$masked" "$R"
+    else
+        printf '  %-30s %s(not set)%s\n' "HF_TOKEN:" "$Y" "$R"
+    fi
+
+    printf '  %-30s %s%s%s\n' "API key auth:" "$C" "$key_enabled" "$R"
+    printf '\n  Config file: %s\n\n' "$ENV_FILE"
+}
+
+do_reset() {
+    hdr "Reset"
+    warn "This will delete .env and stop the server."
+    printf '\n  1) Delete .env only (keep downloaded models)\n'
+    printf '  2) Delete .env AND purge all downloaded models (frees disk)\n'
+    printf '  3) Cancel\n\n'
+    printf 'Choice [default: 3]: '
+    read -r CHOICE
+
+    case "${CHOICE:-3}" in
+        1)
+            [[ -f "$ENV_FILE" ]] && rm "$ENV_FILE" && ok ".env deleted"
+            printf 'Run %sconfigure.sh%s to set up again.\n\n' "$C" "$R" ;;
+        2)
+            require_docker
+            [[ -f "$ENV_FILE" ]] && rm "$ENV_FILE" && ok ".env deleted"
+            local vol
+            vol=$(docker volume ls -q | grep -E 'weights_cache$' | head -1 || true)
+            if [[ -n "$vol" ]]; then
+                # stop containers using the volume first
+                docker compose -f "$REPO_ROOT/docker-compose.yml" down 2>/dev/null || true
+                docker volume rm "$vol" && ok "Volume '$vol' removed (models purged)"
+            else
+                warn "No weights_cache volume found — models already gone or never downloaded"
+            fi
+            printf 'Run %sconfigure.sh%s then %smake build && make start%s.\n\n' \
+                "$C" "$R" "$C" "$R" ;;
+        *)
+            printf 'Cancelled.\n\n' ;;
+    esac
+}
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+_require_env() {
+    if [[ ! -f "$ENV_FILE" ]]; then
+        err ".env not found. Run option 1 (first-time setup) first."
+        exit 1
+    fi
+}
+
+_print_next_steps() {
+    local langs="$1"
+    printf '\n%sNext steps:%s\n\n' "$B" "$R"
+    printf '  %smake build%s           build the Docker image\n' "$C" "$R"
+    printf '  %smake dev-docker%s      start (hot-reload, logs in terminal)\n' "$C" "$R"
+    printf '  %smake start%s           start in background (production)\n' "$C" "$R"
+    printf '  %smake test-docker%s     run fast test suite\n' "$C" "$R"
+    printf '  %smake logs%s            tail container logs\n\n' "$C" "$R"
+    printf '%sNote:%s first startup downloads voice models for: %s%s%s\n' \
+        "$Y" "$R" "$B" "$langs" "$R"
+    printf 'Subsequent starts are instant — models cached in Docker volume.\n\n'
+}
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Main menu
+# ══════════════════════════════════════════════════════════════════════════════
+
+main_menu() {
+    while true; do
+        printf '\n%sReadium Speech Server%s\n\n' "$B" "$R"
+
+        if [[ -f "$ENV_FILE" ]]; then
+            local langs workers
+            langs=$(current_langs)
+            workers=$(get_env WORKERS); workers="${workers:-1}"
+            printf '  Current: languages=%s%s%s  workers=%s%s%s\n\n' \
+                "$C" "$langs" "$R" "$C" "$workers" "$R"
+            printf '  1) Show full config\n'
+            printf '  2) Add a language\n'
+            printf '  3) Remove a language\n'
+            printf '  4) Change workers\n'
+            printf '  5) Update HF token\n'
+            printf '  6) First-time setup (re-run / overwrite)\n'
+            printf '  7) Reset\n'
+            printf '  q) Quit\n\n'
+            printf 'Choice: '
+            read -r OPT
+            case "$OPT" in
+                1) do_show_config ;;
+                2) do_add_language ;;
+                3) do_remove_language ;;
+                4) do_change_workers ;;
+                5) do_update_token ;;
+                6) do_first_setup ;;
+                7) do_reset ;;
+                q|Q) printf '\n'; exit 0 ;;
+                *) warn "Unknown option '$OPT'" ;;
+            esac
+        else
+            printf '  No .env found.\n\n'
+            printf '  1) First-time setup\n'
+            printf '  q) Quit\n\n'
+            printf 'Choice: '
+            read -r OPT
+            case "$OPT" in
+                1) do_first_setup ;;
+                q|Q) printf '\n'; exit 0 ;;
+                *) warn "Unknown option '$OPT'" ;;
+            esac
+        fi
+    done
+}
+
+main_menu

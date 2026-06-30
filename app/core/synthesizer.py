@@ -1,9 +1,12 @@
+import logging
 import struct
 
-from app.api.errors import RequestValidationFailed, UnsupportedFormat
+from app.api.errors import PayloadTooLarge, RequestValidationFailed
+from app.config.settings import settings
 from app.core.voice_catalog import VoiceCatalog
 from app.domain.enums import AudioFormat
-from app.schemas.audio import AudioResult, SynthesisParams
+from app.drivers import ffmpeg as ffmpeg_driver
+from app.schemas.audio import AudioResult, SynthesisParams, TimingMark
 from app.schemas.utterance import SynthesizeRequest
 
 _WAV_BITS = 16
@@ -31,39 +34,72 @@ def _pcm_to_wav(pcm: bytes, sample_rate: int) -> bytes:
     return header + pcm
 
 
+logger = logging.getLogger(__name__)
+
+
 class Synthesizer:
     def __init__(self, catalog: VoiceCatalog) -> None:
         self._catalog = catalog
 
-    async def synthesize(self, request: SynthesizeRequest) -> tuple[bytes, str]:
-        if not request.text.strip():
+    async def synthesize(
+        self, request: SynthesizeRequest
+    ) -> tuple[bytes, str, list[TimingMark], bool]:
+        text = request.text.strip()
+        if not text:
             raise RequestValidationFailed("text must not be empty or whitespace")
 
-        # Phase 1: WAV only; ffmpeg formats land in Phase 3
-        if request.format != AudioFormat.WAV:
-            raise UnsupportedFormat(
-                f"Format '{request.format}' not supported yet — use 'wav'",
-                detail="mp3 and opus will be available after Phase 3 (ffmpeg integration)",
+        if len(text) > settings.max_text_length:
+            raise PayloadTooLarge(
+                f"text exceeds {settings.max_text_length} characters",
+                detail=f"received {len(text)}, limit is {settings.max_text_length}",
             )
 
-        provider, engine_voice_id = self._catalog.resolve(request.voice)
+        provider, voice_uri = self._catalog.resolve(request.voice)
+        boundaries_supported = provider.supports_boundaries
 
+        out = request.output
+        logger.info(
+            "synthesize voice=%s provider=%s format=%s chars=%d boundary=%s",
+            voice_uri,
+            provider.id,
+            out.format.value,
+            len(text),
+            request.boundary,
+        )
         params = SynthesisParams(
-            text=request.text,
+            text=text,
             ssml=request.ssml,
             language=request.language,
-            engineVoiceId=engine_voice_id,
-            speed=request.speed,
-            pitch=request.pitch,
+            voice_uri=voice_uri,
+            speed=out.speed,
+            pitch=out.pitch,
             prev_utterance=request.prev_utterance,
             next_utterance=request.next_utterance,
         )
 
         result: AudioResult = await provider.synthesize(params)
-        if result.encoded is not None:
-            content_type = f"audio/{result.format or 'wav'}"
-            return result.encoded, content_type
-        if result.pcm is None:
-            raise ValueError("AudioResult must set either pcm or encoded")
-        wav_bytes = _pcm_to_wav(result.pcm, result.sample_rate)
-        return wav_bytes, "audio/wav"
+
+        if out.format == AudioFormat.WAV:
+            audio = _pcm_to_wav(result.pcm, result.sample_rate)
+            logger.info("generated wav pcm_bytes=%d output_bytes=%d", len(result.pcm), len(audio))
+            return (audio, "audio/wav", result.boundaries, boundaries_supported)
+
+        encoded = await ffmpeg_driver.encode(
+            result.pcm,
+            result.sample_rate,
+            out.format.value,
+            ffmpeg_bin=settings.ffmpeg_bin,
+            bitrate=out.bitrate,
+        )
+        logger.info(
+            "generated %s pcm_bytes=%d output_bytes=%d",
+            out.format.value,
+            len(result.pcm),
+            len(encoded),
+        )
+        return (
+            encoded,
+            ffmpeg_driver.content_type(out.format.value),
+            result.boundaries,
+            boundaries_supported,
+        )

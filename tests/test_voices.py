@@ -18,9 +18,11 @@ async def test_list_voices_shape(client: AsyncClient) -> None:
     resp = await client.get("/v1/voices")
     voice = resp.json()[0]
     required = (
+        "source",
         "label",
-        "voiceURI",
         "name",
+        "originalName",
+        "voiceURI",
         "language",
         "provider",
         "engineVoiceId",
