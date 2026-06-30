@@ -1,0 +1,11 @@
+# Dev override: mount source for hot-reload and live test edits.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  app:
+    restart: "no"
+    stop_grace_period: 5s
+    volumes:
+      - ./app:/app/app
+      - ./tests:/app/tests
+    environment:
+      - RELOAD=true

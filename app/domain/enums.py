@@ -14,15 +14,8 @@ class Gender(StrEnum):
 
 
 class Quality(StrEnum):
+    VERY_LOW = "veryLow"
     LOW = "low"
-    MEDIUM = "medium"
+    NORMAL = "normal"
     HIGH = "high"
-    PREMIUM = "premium"
-
-
-class ProviderId(StrEnum):
-    POCKET = "pocket"
-    KOKORO = "kokoro"
-    ELEVENLABS = "elevenlabs"
-    AZURE = "azure"
-    FAKE = "fake"
+    VERY_HIGH = "veryHigh"

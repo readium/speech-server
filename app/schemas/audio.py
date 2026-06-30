@@ -1,16 +1,23 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
 class TimingMark(BaseModel):
-    offset: float  # seconds from audio start
-    text: str  # word or sentence text
+    """Mirrors the Web Speech API SpeechSynthesisEvent boundary fields.
+    charIndex + charLength index into the original SynthesizeRequest.text."""
+
+    name: Literal["word", "sentence"] = "word"
+    charIndex: int  # character offset of word start in utterance text
+    charLength: int  # character length of the word span
+    elapsedTime: float  # seconds from audio start when word begins
 
 
 class SynthesisParams(BaseModel):
     text: str
     ssml: bool
     language: str | None
-    engineVoiceId: str
+    voice_uri: str
     speed: float
     pitch: float | None
     prev_utterance: str | None = None
@@ -18,8 +25,6 @@ class SynthesisParams(BaseModel):
 
 
 class AudioResult(BaseModel):
-    pcm: bytes | None = None  # raw PCM; None when encoded is set
-    encoded: bytes | None = None  # pre-encoded bytes (commercial providers)
-    format: str | None = None  # e.g. "mp3", "wav"; set when encoded is used
+    pcm: bytes
     sample_rate: int
-    timing_marks: list[TimingMark] | None = None  # scaffolded; unused until Phase 3+
+    boundaries: list[TimingMark] = []  # empty when provider doesn't support word timing

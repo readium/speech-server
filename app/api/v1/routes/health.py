@@ -2,6 +2,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.config.settings import settings
+from app.drivers import ffmpeg as ffmpeg_driver
+
 router = APIRouter(tags=["health"])
 
 
@@ -30,4 +33,14 @@ async def readyz(request: Request) -> JSONResponse:
     ready: bool = getattr(request.app.state, "ready", False)
     if not ready:
         return JSONResponse(status_code=503, content={"status": "not ready"})
+    if not ffmpeg_driver.is_available(settings.ffmpeg_bin):
+        return JSONResponse(status_code=503, content={"status": "ffmpeg not found"})
+    registry = getattr(request.app.state, "registry", None)
+    if registry:
+        for provider in registry.all():
+            if not await provider.health():
+                return JSONResponse(
+                    status_code=503,
+                    content={"status": f"provider '{provider.id}' not ready"},
+                )
     return JSONResponse(status_code=200, content={"status": "ok"})

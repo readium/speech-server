@@ -1,8 +1,10 @@
 import json
 import logging
+import logging.handlers
 import sys
 import time
 import uuid
+from queue import SimpleQueue
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -27,12 +29,23 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log)
 
 
-def configure_logging(level: str = "INFO") -> None:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(JsonFormatter())
-    logging.root.handlers = [handler]
+def configure_logging(level: str = "INFO") -> logging.handlers.QueueListener:
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(JsonFormatter())
+
+    # QueueHandler enqueues records instantly (non-blocking on the event loop).
+    # QueueListener drains the queue in a background daemon thread.
+    log_queue: SimpleQueue[logging.LogRecord] = SimpleQueue()
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+
+    listener = logging.handlers.QueueListener(log_queue, stream_handler, respect_handler_level=True)
+    listener.start()
+
+    logging.root.handlers = [queue_handler]
     logging.root.setLevel(getattr(logging, level.upper(), logging.INFO))
     logging.getLogger("uvicorn.access").propagate = False
+
+    return listener
 
 
 _access_logger = logging.getLogger("app.access")
@@ -45,22 +58,17 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         start = time.monotonic()
         response = await call_next(request)
         latency_ms = round((time.monotonic() - start) * 1000, 1)
-        record = logging.LogRecord(
-            name="app.access",
-            level=logging.INFO,
-            pathname="",
-            lineno=0,
-            msg="",
-            args=(),
-            exc_info=None,
+        _access_logger.info(
+            "",
+            extra={
+                "fields": {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": response.status_code,
+                    "latency_ms": latency_ms,
+                }
+            },
         )
-        record.fields = {
-            "request_id": request_id,
-            "method": request.method,
-            "path": request.url.path,
-            "status": response.status_code,
-            "latency_ms": latency_ms,
-        }
-        _access_logger.handle(record)
         response.headers["X-Request-Id"] = request_id
         return response

@@ -7,10 +7,16 @@ if [[ "${API_KEY_ENABLED:-false}" == "true" && -z "${API_KEY:-}" ]]; then
   exit 1
 fi
 
-# Phase 2+: ensure model weights are present
-# python /app/scripts/fetch_weights.py
-
-exec uvicorn app.main:app \
-  --host "${HOST:-0.0.0.0}" \
-  --port "${PORT:-8000}" \
-  --workers "${WORKERS:-1}"
+if [[ "${RELOAD:-false}" == "true" ]]; then
+  exec uvicorn app.main:app \
+    --host "${HOST:-0.0.0.0}" \
+    --port "${PORT:-8000}" \
+    --reload \
+    --timeout-graceful-shutdown 3
+else
+  exec uvicorn app.main:app \
+    --host "${HOST:-0.0.0.0}" \
+    --port "${PORT:-8000}" \
+    --workers "${WORKERS:-1}" \
+    --timeout-graceful-shutdown 5
+fi

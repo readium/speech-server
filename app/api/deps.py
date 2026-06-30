@@ -21,6 +21,5 @@ def get_synthesizer(catalog: Annotated[VoiceCatalog, Depends(get_voice_catalog)]
     return Synthesizer(catalog)
 
 
-RegistryDep = Annotated[ProviderRegistry, Depends(get_registry)]
 VoiceCatalogDep = Annotated[VoiceCatalog, Depends(get_voice_catalog)]
 SynthesizerDep = Annotated[Synthesizer, Depends(get_synthesizer)]

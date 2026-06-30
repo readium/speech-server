@@ -5,14 +5,15 @@ services:
       - "${PORT:-8000}:8000"
     env_file:
       - .env
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
     volumes:
-      - weights:/app/assets/weights
+      - weights_cache:/weights
     networks:
       - speech-net
     restart: unless-stopped
+    stop_grace_period: 5s
 
-  # Optional NGINX reverse proxy — only needed for VPS/self-hosted.
-  # Enable with: docker compose --profile nginx up
   nginx:
     image: nginx:alpine
     profiles: [nginx]
@@ -27,7 +28,7 @@ services:
       - speech-net
 
 volumes:
-  weights:
+  weights_cache:
 
 networks:
   speech-net:
