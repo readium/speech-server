@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Response
 
 from app.api.deps import VoiceCatalogDep
-from app.api.errors import ErrorResponse
+from app.api.errors import problem_response
 from app.schemas.voice import Voice
 
 router = APIRouter(tags=["voices"])
@@ -19,7 +19,7 @@ router = APIRouter(tags=["voices"])
         "Response headers `X-Total-Count`, `X-Offset`, `X-Limit` reflect the full result set size."
     ),
     responses={
-        502: {"model": ErrorResponse, "description": "Provider unavailable"},
+        502: problem_response("Provider unavailable"),
     },
     openapi_extra={
         "responses": {

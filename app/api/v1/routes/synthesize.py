@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.api.deps import SynthesizerDep
-from app.api.errors import ErrorResponse
+from app.api.errors import problem_response
 from app.schemas.utterance import SynthesizeRequest
 
 router = APIRouter(tags=["synthesize"])
@@ -27,11 +27,11 @@ router = APIRouter(tags=["synthesize"])
                 "or `application/json` with base64 audio + boundaries (`boundary: true`)."
             ),
         },
-        400: {"model": ErrorResponse, "description": "Empty or whitespace text"},
-        404: {"model": ErrorResponse, "description": "Voice URI not found"},
-        413: {"model": ErrorResponse, "description": "Text exceeds max length"},
-        415: {"model": ErrorResponse, "description": "Unsupported audio format"},
-        422: {"model": ErrorResponse, "description": "Request schema validation error"},
+        400: problem_response("Empty or whitespace text"),
+        404: problem_response("Voice URI not found"),
+        413: problem_response("Text exceeds max length"),
+        415: problem_response("Unsupported audio format"),
+        422: problem_response("Request schema validation error"),
     },
     openapi_extra={
         "requestBody": {

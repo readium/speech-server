@@ -34,14 +34,14 @@ async def test_synthesize_wav_is_nonempty_audio(client: AsyncClient) -> None:
 async def test_synthesize_unknown_voice_returns_404(client: AsyncClient) -> None:
     resp = await client.post(_URL, json={"text": "Hello", "voice": "urn:unknown", **_WAV})
     assert resp.status_code == 404
-    assert resp.json()["error"]["code"] == "voice_not_found"
+    assert resp.json()["type"] == "https://readium.org/speech-server/error#voice_not_found"
 
 
 @pytest.mark.route
 async def test_synthesize_empty_text_returns_400(client: AsyncClient) -> None:
     resp = await client.post(_URL, json={"text": "   ", "voice": _VOICE, **_WAV})
     assert resp.status_code == 400
-    assert resp.json()["error"]["code"] == "validation_failed"
+    assert resp.json()["type"] == "https://readium.org/speech-server/error#validation_failed"
 
 
 @pytest.mark.route

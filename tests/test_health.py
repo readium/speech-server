@@ -24,4 +24,4 @@ async def test_readyz_before_ready(app: FastAPI) -> None:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         resp = await c.get("/readyz")
         assert resp.status_code == 503
-        assert resp.json() == {"status": "not ready"}
+        assert resp.json()["type"] == "https://readium.org/speech-server/error#service_not_ready"
