@@ -11,7 +11,8 @@ B=$'\033[1m' R=$'\033[0m' G=$'\033[32m' Y=$'\033[33m' C=$'\033[36m' RED=$'\033[3
 ok()   { printf '%s✓%s %s\n' "$G" "$R" "$*"; }
 warn() { printf '%s!%s %s\n' "$Y" "$R" "$*"; }
 err()  { printf '%s✗%s %s\n' "$RED" "$R" "$*" >&2; }
-hdr()  { printf '\n%s── %s%s\n\n' "$B" "$*" "$R"; }
+hdr()  { echo; gum style --bold --foreground 212 "── $* ──"; echo; }
+banner() { gum style --border rounded --border-foreground 212 --bold --padding "0 2" --margin "1 0" "Readium Speech Server"; }
 
 # ── Portable .env read/write ──────────────────────────────────────────────────
 get_env() {
@@ -69,34 +70,61 @@ lang_list_to_set() {
     echo "$out"
 }
 
-show_lang_menu() {
-    local current="$1"
-    printf '  Supported languages (PocketTTS — ~240 MB each):\n\n'
-    local i=1
-    for code in "${ALL_LANGS[@]}"; do
-        local marker="  "
-        if echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
-            marker="${G}✓${R}"
-        fi
-        printf '  %s %d) %s — %s\n' "$marker" "$i" "$code" "$(lang_name "$code")"
-        i=$((i+1))
-    done
-    printf '\n'
-}
-
-num_to_lang() {
-    local n="$1" i=1
-    for code in "${ALL_LANGS[@]}"; do
-        [[ "$n" == "$i" ]] && { echo "$code"; return; }
-        i=$((i+1))
-    done
-}
-
 # ── Docker check ──────────────────────────────────────────────────────────────
 require_docker() {
     if ! command -v docker &>/dev/null; then
         err "Docker is not installed."
         printf '  Install: https://www.docker.com/products/docker-desktop\n\n'
+        exit 1
+    fi
+}
+
+# ── gum check (interactive UI: menus/prompts/spinners) ─────────────────────────
+# No brew/sudo required: falls back to downloading a local static binary
+# straight from GitHub releases into $REPO_ROOT/.bin, used only for this
+# script's own PATH.
+GUM_BIN_DIR="$REPO_ROOT/.bin"
+GUM_BIN="$GUM_BIN_DIR/gum"
+
+require_gum() {
+    if command -v gum &>/dev/null; then
+        return
+    fi
+    if [[ -x "$GUM_BIN" ]]; then
+        export PATH="$GUM_BIN_DIR:$PATH"
+        return
+    fi
+    if [[ "$(uname -s)" != "Darwin" ]]; then
+        err "gum is not installed (used for this wizard's menus/prompts)."
+        printf '  Install: https://github.com/charmbracelet/gum#installation\n\n'
+        exit 1
+    fi
+
+    warn "gum not found — downloading a local copy (no brew/sudo needed)..."
+    local arch tag url tmp api_json
+    arch=$(uname -m)
+    [[ "$arch" == "arm64" ]] || arch="x86_64"
+    # Fetch into a variable first, then parse — piping curl straight into
+    # `grep -m1` under pipefail lets grep close the pipe early, SIGPIPE-ing
+    # curl and killing the script via set -e.
+    api_json=$(curl -fsSL https://api.github.com/repos/charmbracelet/gum/releases/latest 2>/dev/null) || true
+    tag=$(printf '%s' "$api_json" | grep -m1 '"tag_name"' | cut -d'"' -f4) || true
+    tag="${tag:-v0.14.5}"
+    url="https://github.com/charmbracelet/gum/releases/download/${tag}/gum_${tag#v}_Darwin_${arch}.tar.gz"
+
+    mkdir -p "$GUM_BIN_DIR"
+    tmp=$(mktemp -d)
+    if curl -fsSL "$url" -o "$tmp/gum.tar.gz" 2>/dev/null && tar -xzf "$tmp/gum.tar.gz" -C "$tmp"; then
+        find "$tmp" -type f -name gum -exec mv {} "$GUM_BIN" \;
+        chmod +x "$GUM_BIN"
+        rm -rf "$tmp"
+        export PATH="$GUM_BIN_DIR:$PATH"
+        ok "gum installed → $GUM_BIN"
+    else
+        rm -rf "$tmp"
+        err "Auto-download failed."
+        printf '  Install manually: brew install gum\n'
+        printf '  or see: https://github.com/charmbracelet/gum#installation\n\n'
         exit 1
     fi
 }
@@ -110,69 +138,96 @@ do_first_setup() {
 
     if [[ -f "$ENV_FILE" ]]; then
         warn ".env already exists."
-        printf '\n  1) Overwrite\n  2) Backup (.env → .env.backup) then overwrite\n  3) Cancel\n\n'
-        printf 'Choice [default: 3]: '
-        read -r CHOICE
-        case "${CHOICE:-3}" in
-            1) ;;
-            2) cp "$ENV_FILE" "${ENV_FILE}.backup"
+        CHOICE=$(gum choose "Overwrite" "Backup (.env → .env.backup) then overwrite" "Cancel") || true
+        case "$CHOICE" in
+            "Overwrite") ;;
+            "Backup"*) cp "$ENV_FILE" "${ENV_FILE}.backup"
                ok "Backed up → .env.backup" ;;
             *) printf 'Cancelled.\n'; return ;;
         esac
     fi
 
-    hdr "Step 1/3 — Languages"
-    show_lang_menu ""
-    printf 'Enter numbers separated by spaces [default: 1 = English]: '
-    read -r LANG_INPUT
-    LANG_INPUT="${LANG_INPUT:-1}"
-
-    LANGS=""
-    for num in $LANG_INPUT; do
-        code=$(num_to_lang "$num")
-        if [[ -n "$code" ]]; then
-            LANGS="${LANGS:+${LANGS},}${code}"
-        else
-            warn "Unknown selection \"$num\" — skipped"
-        fi
+    hdr "Step 1/4 — Languages"
+    local lang_opts=()
+    for code in "${ALL_LANGS[@]}"; do
+        lang_opts+=("$code — $(lang_name "$code")")
     done
-    [[ -z "$LANGS" ]] && LANGS="en"
-    LANGS=$(lang_list_to_set "$LANGS")
+
+    # Enter is easy to hit reflexively (it's the "confirm" key in most menus)
+    # before pressing Space to actually check anything — confirm-and-retry
+    # loop so a stray Enter doesn't silently lock in the wrong selection.
+    while true; do
+        local choices=()
+        # mapfile is bash4+ only; macOS ships bash 3.2 by default. Portable read loop instead.
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && choices+=("$line")
+        done < <(printf '%s\n' "${lang_opts[@]}" |
+            gum choose --no-limit \
+                --header "SPACE to check a language, then ENTER when done (default: English if none checked)")
+
+        LANGS=""
+        # bash 3.2 (macOS default) treats "${arr[@]}" on an empty array as unbound
+        # under set -u — check length first rather than expanding directly.
+        if [[ ${#choices[@]} -gt 0 ]]; then
+            for choice in "${choices[@]}"; do
+                LANGS="${LANGS:+${LANGS},}${choice%% —*}"
+            done
+        fi
+        [[ -z "$LANGS" ]] && LANGS="en"
+        LANGS=$(lang_list_to_set "$LANGS")
+
+        printf '\nSelected:\n'
+        IFS=',' read -ra _selected_codes <<< "$LANGS"
+        for code in "${_selected_codes[@]}"; do
+            printf '  %s✓%s %s — %s\n' "$G" "$R" "$code" "$(lang_name "$code")"
+        done
+
+        if gum confirm "Use these languages?"; then
+            break
+        fi
+        printf '\n'
+    done
     ok "Languages: $LANGS"
 
-    hdr "Step 2/3 — Workers"
-    printf 'RAM per worker = ~240 MB × number of languages loaded\n'
-    printf 'WORKERS [default: 1]: '
-    read -r WORKERS
+    hdr "Step 2/4 — Workers"
+    WORKERS=$(gum input --placeholder "1" \
+        --header "RAM per worker = ~240 MB × number of languages loaded") || true
     WORKERS="${WORKERS:-1}"
     case "$WORKERS" in
         ''|*[!0-9]*|0) warn "Invalid — using 1"; WORKERS=1 ;;
     esac
     ok "Workers: $WORKERS"
 
-    hdr "Step 3/3 — HuggingFace Token"
-    printf 'Required to download voice models from HuggingFace.\n'
-    printf 'Get a free read-only token at: https://huggingface.co/settings/tokens\n\n'
-    printf 'HF_TOKEN (input hidden): '
-    read -rs HF_TOKEN
-    printf '\n'
+    hdr "Step 3/4 — HuggingFace Token"
+    HF_TOKEN=$(gum input --password --placeholder "hf_..." \
+        --header "Get a free read-only token at: https://huggingface.co/settings/tokens") || true
     if [[ -z "$HF_TOKEN" ]]; then
         warn "No token entered — model downloads may be rate-limited until HF_TOKEN is set."
     else
         ok "Token recorded"
     fi
 
+    hdr "Step 4/4 — Domain"
+    DOMAIN_INPUT=$(gum input --placeholder "tts.example.com" \
+        --header "Domain name nginx/FastAPI will serve") || true
+    if [[ -z "$DOMAIN_INPUT" ]]; then
+        err "DOMAIN is required in production mode."
+        exit 1
+    fi
+    ok "Domain: $DOMAIN_INPUT"
+
     cat > "$ENV_FILE" << 'EOF'
 # Readium Speech Server — environment variables
 # Generated by configure.sh — edit manually or re-run configure.sh
 
 # ── Server ──
-APP_ENV=development
+APP_ENV=production
 LOG_LEVEL=INFO
 HOST=0.0.0.0
 PORT=8000
 API_V1_PREFIX=/v1
 WORKERS=1
+DOMAIN=
 
 # ── Auth (off by default) ──
 API_KEY_ENABLED=false
@@ -201,6 +256,7 @@ EOF
     set_env LANGUAGES "$LANGS"
     set_env WORKERS   "$WORKERS"
     set_env HF_TOKEN  "$HF_TOKEN"
+    set_env DOMAIN    "$DOMAIN_INPUT"
 
     ok "Written → .env"
     _print_next_steps "$LANGS"
@@ -212,18 +268,22 @@ do_add_language() {
     current=$(current_langs)
 
     hdr "Add Language"
-    show_lang_menu "$current"
-    printf 'Number to add: '
-    read -r NUM
-    code=$(num_to_lang "$NUM")
-    if [[ -z "$code" ]]; then
-        err "Invalid selection."
+    local available=() code choice
+    for code in "${ALL_LANGS[@]}"; do
+        if ! echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
+            available+=("$code — $(lang_name "$code")")
+        fi
+    done
+    if [[ ${#available[@]} -eq 0 ]]; then
+        warn "All supported languages are already enabled."
         return
     fi
-    if echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
-        warn "$code ($(lang_name "$code")) already in LANGUAGES=$current"
+    choice=$(printf '%s\n' "${available[@]}" | gum choose --header "Language to add") || true
+    if [[ -z "$choice" ]]; then
+        warn "Cancelled."
         return
     fi
+    code="${choice%% —*}"
     local new
     new=$(lang_list_to_set "${current},${code}")
     set_env LANGUAGES "$new"
@@ -246,17 +306,16 @@ do_remove_language() {
     fi
 
     hdr "Remove Language"
-    show_lang_menu "$current"
-    printf 'Number to remove: '
-    read -r NUM
-    code=$(num_to_lang "$NUM")
-    if [[ -z "$code" ]]; then
-        err "Invalid selection."; return
-    fi
-    if ! echo "$current" | grep -qE "(^|,)${code}(,|$)"; then
-        warn "$code is not in LANGUAGES=$current"
+    local options=() p code choice
+    for p in "${parts[@]}"; do
+        options+=("$p — $(lang_name "$p")")
+    done
+    choice=$(printf '%s\n' "${options[@]}" | gum choose --header "Language to remove") || true
+    if [[ -z "$choice" ]]; then
+        warn "Cancelled."
         return
     fi
+    code="${choice%% —*}"
 
     local new="" p2
     for p2 in "${parts[@]}"; do
@@ -285,8 +344,7 @@ do_change_workers() {
     lang_count=$(echo "$langs" | tr ',' '\n' | wc -l | tr -d ' ')
     printf 'Current: %s%s%s workers | RAM per worker: ~%d MB (%d language(s) × 240 MB)\n\n' \
         "$C" "$current" "$R" $((lang_count * 240)) "$lang_count"
-    printf 'New WORKERS [current: %s]: ' "$current"
-    read -r WORKERS
+    WORKERS=$(gum input --placeholder "$current" --header "New WORKERS") || true
     WORKERS="${WORKERS:-$current}"
     case "$WORKERS" in
         ''|*[!0-9]*|0) warn "Invalid — keeping $current"; return ;;
@@ -303,10 +361,8 @@ do_update_token() {
     _require_env
 
     hdr "Update HF_TOKEN"
-    printf 'Get a free read-only token at: https://huggingface.co/settings/tokens\n\n'
-    printf 'New HF_TOKEN (input hidden): '
-    read -rs HF_TOKEN
-    printf '\n'
+    HF_TOKEN=$(gum input --password --placeholder "hf_..." \
+        --header "Get a free read-only token at: https://huggingface.co/settings/tokens") || true
     [[ -z "$HF_TOKEN" ]] && { warn "Empty token — no change made."; return; }
     set_env HF_TOKEN "$HF_TOKEN"
     ok "HF_TOKEN updated in .env"
@@ -348,17 +404,16 @@ do_show_config() {
 do_reset() {
     hdr "Reset"
     warn "This will delete .env and stop the server."
-    printf '\n  1) Delete .env only (keep downloaded models)\n'
-    printf '  2) Delete .env AND purge all downloaded models (frees disk)\n'
-    printf '  3) Cancel\n\n'
-    printf 'Choice [default: 3]: '
-    read -r CHOICE
+    CHOICE=$(gum choose \
+        "Delete .env only (keep downloaded models)" \
+        "Delete .env AND purge all downloaded models (frees disk)" \
+        "Cancel") || true
 
-    case "${CHOICE:-3}" in
-        1)
+    case "$CHOICE" in
+        "Delete .env only"*)
             [[ -f "$ENV_FILE" ]] && rm "$ENV_FILE" && ok ".env deleted"
             printf 'Run %sconfigure.sh%s to set up again.\n\n' "$C" "$R" ;;
-        2)
+        "Delete .env AND purge"*)
             require_docker
             [[ -f "$ENV_FILE" ]] && rm "$ENV_FILE" && ok ".env deleted"
             local vol
@@ -387,15 +442,13 @@ _require_env() {
 
 _print_next_steps() {
     local langs="$1"
-    printf '\n%sNext steps:%s\n\n' "$B" "$R"
-    printf '  %smake build%s           build the Docker image\n' "$C" "$R"
-    printf '  %smake dev-docker%s      start (hot-reload, logs in terminal)\n' "$C" "$R"
-    printf '  %smake start%s           start in background (production)\n' "$C" "$R"
-    printf '  %smake test-docker%s     run fast test suite\n' "$C" "$R"
-    printf '  %smake logs%s            tail container logs\n\n' "$C" "$R"
-    printf '%sNote:%s first startup downloads voice models for: %s%s%s\n' \
+    printf '\n%sAvailable commands:%s\n\n' "$B" "$R"
+    (cd "$REPO_ROOT" && make help)
+    printf '\n%sNote:%s first startup downloads voice models for: %s%s%s\n' \
         "$Y" "$R" "$B" "$langs" "$R"
     printf 'Subsequent starts are instant — models cached in Docker volume.\n\n'
+    printf '%sNote:%s .env defaults to APP_ENV=production. For local dev, edit\n' "$Y" "$R"
+    printf '.env and set %sAPP_ENV=development%s (DOMAIN then becomes optional).\n\n' "$C" "$R"
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -404,48 +457,47 @@ _print_next_steps() {
 
 main_menu() {
     while true; do
-        printf '\n%sReadium Speech Server%s\n\n' "$B" "$R"
+        clear
+        banner
 
         if [[ -f "$ENV_FILE" ]]; then
-            local langs workers
+            local langs workers OPT
             langs=$(current_langs)
             workers=$(get_env WORKERS); workers="${workers:-1}"
             printf '  Current: languages=%s%s%s  workers=%s%s%s\n\n' \
                 "$C" "$langs" "$R" "$C" "$workers" "$R"
-            printf '  1) Show full config\n'
-            printf '  2) Add a language\n'
-            printf '  3) Remove a language\n'
-            printf '  4) Change workers\n'
-            printf '  5) Update HF token\n'
-            printf '  6) First-time setup (re-run / overwrite)\n'
-            printf '  7) Reset\n'
-            printf '  q) Quit\n\n'
-            printf 'Choice: '
-            read -r OPT
+            OPT=$(gum choose \
+                "Show full config" \
+                "Add a language" \
+                "Remove a language" \
+                "Change workers" \
+                "Update HF token" \
+                "First-time setup (re-run / overwrite)" \
+                "Reset" \
+                "Quit") || true
             case "$OPT" in
-                1) do_show_config ;;
-                2) do_add_language ;;
-                3) do_remove_language ;;
-                4) do_change_workers ;;
-                5) do_update_token ;;
-                6) do_first_setup ;;
-                7) do_reset ;;
-                q|Q) printf '\n'; exit 0 ;;
-                *) warn "Unknown option '$OPT'" ;;
+                "Show full config") do_show_config ;;
+                "Add a language") do_add_language ;;
+                "Remove a language") do_remove_language ;;
+                "Change workers") do_change_workers ;;
+                "Update HF token") do_update_token ;;
+                "First-time setup"*) do_first_setup ;;
+                "Reset") do_reset ;;
+                *) printf '\n'; exit 0 ;;
             esac
+            printf '\nPress Enter to continue...'; read -r _
         else
+            local OPT
             printf '  No .env found.\n\n'
-            printf '  1) First-time setup\n'
-            printf '  q) Quit\n\n'
-            printf 'Choice: '
-            read -r OPT
+            OPT=$(gum choose "First-time setup" "Quit") || true
             case "$OPT" in
-                1) do_first_setup ;;
-                q|Q) printf '\n'; exit 0 ;;
-                *) warn "Unknown option '$OPT'" ;;
+                "First-time setup") do_first_setup ;;
+                *) printf '\n'; exit 0 ;;
             esac
+            printf '\nPress Enter to continue...'; read -r _
         fi
     done
 }
 
+require_gum
 main_menu

@@ -1,0 +1,25 @@
+# http-level hardening — shared across every server block.
+
+server_tokens off;
+
+client_header_timeout 10s;
+client_body_timeout 10s;
+keepalive_timeout 15s;
+large_client_header_buffers 2 1k;
+
+# Sized around app/config/settings.py's max_concurrent_syntheses default (2):
+# protects a tiny backend semaphore from an unauthenticated burst
+# (API_KEY_ENABLED defaults false).
+limit_req_zone $binary_remote_addr zone=synth:10m rate=2r/s;
+limit_conn_zone $binary_remote_addr zone=perip:10m;
+
+# No Authorization/API-key header, no request body (bodies aren't logged by
+# nginx by default anyway) — deliberate, ties to issue's "no sensitive info
+# exposed" requirement.
+log_format proxy_combined
+    '$remote_addr - [$http_x_forwarded_for] "$request" '
+    '$status $body_bytes_sent "$http_referer" "$http_user_agent" '
+    'rt=$request_time';
+
+access_log /dev/stdout proxy_combined;
+error_log  /dev/stderr warn;

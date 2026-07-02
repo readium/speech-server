@@ -4,6 +4,8 @@ services:
   app:
     restart: "no"
     stop_grace_period: 5s
+    ports:
+      - "${PORT:-8000}:8000"
     volumes:
       - ./app:/app/app
       - ./tests:/app/tests

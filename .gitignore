@@ -228,3 +228,6 @@ assets/voices/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# auto-downloaded gum binary (scripts/configure.sh, no brew/sudo required)
+/.bin/

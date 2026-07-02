@@ -44,13 +44,13 @@ ci-docker: lint-docker fmt-check-docker typecheck-docker test-docker ## Run full
 logs: ## Tail the app container logs
 	docker compose logs -f app
 
-start: ## Start the stack in the background
-	docker compose up -d
+start: ## Start the stack with nginx reverse proxy in front (background)
+	docker compose --profile nginx up -d
 
 run: start ## Alias for start
 
 stop: ## Stop the stack
-	docker compose down
+	docker compose --profile nginx down
 
 configure: ## Run the interactive setup script
 	bash scripts/configure.sh

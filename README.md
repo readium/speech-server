@@ -73,6 +73,8 @@ Readium Speech Server
 
 Adding a language updates `.env` in place — only the new model is downloaded on next restart. Removing a language preserves the model files in the Docker volume; disk is reclaimed only if you choose to purge the volume.
 
+> **Production by default.** First-time setup writes `APP_ENV=production` and prompts for `DOMAIN` (required in production — FastAPI uses it for `TrustedHostMiddleware` and the OpenAPI base URL). `make start` puts nginx in front of the app as a reverse proxy; the app container has no published port, so it's only reachable through nginx. For local dev, edit `.env` and set `APP_ENV=development` (`DOMAIN` becomes optional again), and use `make dev-docker` instead — it exposes `:8000` directly with no nginx.
+
 ---
 
 ## Voices
