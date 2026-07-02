@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, gt=0, le=65535)
     api_v1_prefix: str = "/v1"
     workers: int = Field(default=1, ge=1)
+    domain: str = ""
 
     # Auth (off by default for PoC)
     api_key_enabled: bool = False
@@ -53,6 +54,8 @@ class Settings(BaseSettings):
         providers = [p.strip() for p in self.enabled_providers.split(",")]
         if self.default_provider not in providers:
             raise ValueError(f"DEFAULT_PROVIDER '{self.default_provider}' not in ENABLED_PROVIDERS")
+        if self.app_env == "production" and not self.domain:
+            raise ValueError("DOMAIN must be set when APP_ENV=production")
         return self
 
 

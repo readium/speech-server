@@ -23,8 +23,20 @@ def mock_ffmpeg(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ffmpeg_mod, "encode", _fake_encode)
 
 
+@pytest.fixture(autouse=True)
+def _test_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Settings() reads the real .env at import time — force test-safe values
+    # regardless of what's in the developer's actual .env (e.g. production
+    # mode + a real DOMAIN would activate TrustedHostMiddleware and reject
+    # the test client's Host header).
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings, "app_env", "development")
+    monkeypatch.setattr(settings, "domain", "")
+
+
 @pytest.fixture
-def app() -> FastAPI:
+def app(_test_settings: None) -> FastAPI:
     return create_app()
 
 

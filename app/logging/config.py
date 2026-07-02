@@ -67,6 +67,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                     "status": response.status_code,
                     "latency_ms": latency_ms,
+                    "client_ip": request.client.host if request.client else None,
                 }
             },
         )

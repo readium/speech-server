@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.errors import register_error_handlers
 from app.api.v1.router import v1_router
@@ -56,8 +57,14 @@ def create_app() -> FastAPI:
             {"name": "voices", "description": "List available TTS voices."},
             {"name": "synthesize", "description": "Convert text/SSML to audio."},
         ],
+        servers=[{"url": f"https://{settings.domain}"}]
+        if settings.app_env == "production"
+        else None,
         lifespan=lifespan,
     )
+
+    if settings.app_env == "production":
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=[settings.domain])
 
     app.add_middleware(RequestLoggingMiddleware)
     register_error_handlers(app)

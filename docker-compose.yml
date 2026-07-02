@@ -1,8 +1,6 @@
 services:
   app:
     build: .
-    ports:
-      - "${PORT:-8000}:8000"
     env_file:
       - .env
     environment:
@@ -18,10 +16,16 @@ services:
     image: nginx:alpine
     profiles: [nginx]
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      # nginx:alpine ships its own default.conf (server_name localhost) —
+      # collides with ours whenever DOMAIN=localhost. Null it out.
+      - /dev/null:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - app
     networks:
