@@ -14,7 +14,7 @@ Designed to pair with [Readium Speech](https://github.com/readium/speech) and an
 | **Providers** | PocketTTS (v1) · Kokoro, ElevenLabs, Azure (planned) |
 | **Languages** | English · French · Italian · German · Spanish · Portuguese |
 | **Formats** | MP3 · WAV · Opus |
-| **Word boundaries** | Schema ready; supported when provider supplies timing data |
+| **Word boundaries** | Schema ready, not yet populated by any provider |
 | **Deployment** | Docker · CPU-only · single named volume for model weights |
 
 ---
@@ -45,10 +45,16 @@ curl -s -X POST http://localhost:8000/v1/synthesize \
 ### Production
 
 ```bash
-make start   # detached, restarts automatically on crash or reboot
+make start   # detached — docker compose --profile nginx up -d
 make stop    # stop all containers
-make logs    # tail container logs
+make logs    # tail app logs (nginx logs: docker compose logs -f nginx)
 ```
+
+Reachable at `http://<DOMAIN>:8080` — nginx publishes host port `8080`, plain HTTP only, no TLS termination. Put a TLS-terminating load balancer in front for a real deployment.
+
+`restart: unless-stopped` is set on the **app** container only; the nginx sidecar has no restart policy (`docker-compose.yml`), so it won't come back on its own after a crash or host reboot.
+
+nginx also rate-limits `/v1/synthesize` (2 req/s, burst 4) and caps connections per IP — a `503` from behind nginx under load is a plain nginx error page, not the app's Problem Details JSON.
 
 ---
 
@@ -200,7 +206,7 @@ Binary audio with `Content-Type: audio/mpeg` (or `audio/wav`, `audio/ogg`).
 }
 ```
 
-`boundaries` is `null` when the provider does not support word timing. Check `voice.boundary` before requesting — if `false`, the response will always return `null`.
+`boundaries` is always `null` today — no provider populates timing marks yet. Every voice reports `boundary: false`; check it before setting `boundary: true` to skip a wasted round trip.
 
 Word boundary fields mirror the [Web Speech API `boundary` event](https://developer.mozilla.org/en-US/docs/Web/API/SpeechSynthesisUtterance/boundary_event): `charIndex` and `charLength` index into the original `text`; `elapsedTime` is seconds from audio start.
 
@@ -214,20 +220,24 @@ Word boundary fields mirror the [Web Speech API `boundary` event](https://develo
 
 **Errors:**
 
-All errors return a consistent shape:
+All errors are [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) (`Content-Type: application/problem+json`):
 
 ```json
-{ "error": { "code": "voice_not_found", "message": "...", "detail": null } }
+{ "type": "https://readium.org/speech-server/error#voice_not_found", "title": "Voice Not Found", "status": 404, "detail": "Voice 'urn:unknown' not found." }
 ```
 
-| Status | Code | Cause |
+| Status | Type suffix | Cause |
 |---|---|---|
 | 400 | `validation_failed` | Empty or whitespace text |
 | 404 | `voice_not_found` | Voice URI not registered |
 | 413 | `payload_too_large` | Text exceeds `MAX_TEXT_LENGTH` (default 2000 chars) |
-| 415 | `unsupported_format` | `format` value not in `mp3`, `wav`, `opus` |
-| 422 | — | Request schema invalid (Pydantic detail) |
-| 503 | — | Models not yet loaded |
+| 422 | `validation_failed` | Request schema invalid (Pydantic detail) |
+| 502 | `provider_error` | Provider or ffmpeg failed |
+| 503 | `service_not_ready` | `/readyz` only — models not loaded, ffmpeg missing, or a provider unhealthy |
+
+Behind production nginx, a `503`/`429` can also come from nginx's own rate/connection limits — those are plain nginx error pages, not `application/problem+json`.
+
+Full field-by-field reference, including every request/response field and what's not implemented yet: [`docs/API.md`](docs/API.md).
 
 ---
 
@@ -241,13 +251,16 @@ Run `make configure` to generate `.env`, or run `bash scripts/configure.sh` dire
 | `HF_TOKEN` | _(empty)_ | HuggingFace token. Optional — prevents rate-limiting on first-run model downloads |
 | `WORKERS` | `1` | Uvicorn worker processes. Each loads a full copy of every active language model |
 | `MAX_CONCURRENT_SYNTHESES` | `2` | Max parallel CPU inference jobs per worker |
-| `API_KEY_ENABLED` | `false` | Require `X-API-Key` header on all routes |
-| `API_KEY` | _(empty)_ | Key value when `API_KEY_ENABLED=true` |
+| `API_KEY_ENABLED` | `false` | Reserved — validated at startup but **not yet enforced** on any route |
+| `API_KEY` | _(empty)_ | Reserved, same caveat |
 | `LOG_LEVEL` | `INFO` | `DEBUG` · `INFO` · `WARNING` · `ERROR` |
 | `PORT` | `8000` | Listen port |
 | `MAX_TEXT_LENGTH` | `2000` | Maximum characters per synthesis request |
 | `FFMPEG_BIN` | `ffmpeg` | Path to ffmpeg binary (bundled in the Docker image) |
 | `POCKET_DEFAULT_VOICE` | `alba` | Default voice when none is specified |
+| `ENABLED_PROVIDERS` | `pocket` | Comma-separated provider ids to register at startup. Only `pocket` exists today |
+| `DEFAULT_PROVIDER` | `pocket` | Must be one of `ENABLED_PROVIDERS` — validated at startup |
+| `DOMAIN` | _(empty)_ | Required when `APP_ENV=production` — used for `TrustedHostMiddleware` and nginx `server_name` |
 
 **RAM estimate:** `WORKERS × active languages × ~240 MB`
 
@@ -323,9 +336,9 @@ Client
 | Provider | Status | Notes |
 |---|---|---|
 | PocketTTS | Current| CPU · 6 languages · 156 voices (26 identities × 6 languages) |
-| Kokoro | 📆 Comming soon | Referenced, not vendored (IP cleanliness) |
-| ElevenLabs | 📆 Comming soon | Proxied · word boundaries supported |
-| Azure Speech | 📆 Comming soon | Proxied · word boundaries supported |
+| Kokoro | Planned | Referenced, not vendored (IP cleanliness) |
+| ElevenLabs | Planned | Proxied · word boundaries supported |
+| Azure Speech | Planned | Proxied · word boundaries supported |
 
 ---
 
