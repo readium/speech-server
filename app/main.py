@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.errors import register_error_handlers
@@ -71,6 +72,10 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(v1_router, prefix=settings.api_v1_prefix)
+
+    @app.get("/demo", include_in_schema=False)
+    async def demo() -> FileResponse:
+        return FileResponse("app/static/demo.html")
 
     return app
 

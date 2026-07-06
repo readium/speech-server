@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Speech Server Demo</title>
+<style>
+  :root {
+    --bg: #f2f2f7;
+    --card: #ffffff;
+    --field: #f2f2f7;
+    --border: #e5e5ea;
+    --text: #000000;
+    --muted: #8e8e93;
+    --accent: #007aff;
+    --accent-hover: #0062cc;
+    --mono-bg: #f2f2f7;
+    --mono-text: #1c1c1e;
+    --error: #ff3b30;
+  }
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 720px;
+    margin: 3rem auto;
+    padding: 0 1.25rem 3rem;
+    line-height: 1.47;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    margin-bottom: 0.6rem;
+  }
+  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.3rem; }
+  h1 + p { color: var(--muted); margin-top: 0; font-size: 0.95rem; }
+  @media (max-width: 600px) {
+    body { margin: 1.5rem auto; padding: 0 1rem 2rem; }
+    h1 { font-size: 1.5rem; }
+    .card { padding: 1.1rem; border-radius: 12px; }
+    .row { flex-direction: column; gap: 0; }
+    button { width: 100%; margin-right: 0; }
+  }
+  h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; margin: 2rem 0 0.5rem 0.25rem; }
+  code { background: var(--field); padding: 0.15rem 0.4rem; border-radius: 6px; font-size: 0.9em; }
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  }
+  label { display: block; margin-top: 1.1rem; font-weight: 600; font-size: 0.85rem; color: var(--muted); }
+  label:first-child { margin-top: 0; }
+  input, select, textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+    font-family: inherit;
+    margin-top: 0.4rem;
+    background: var(--field);
+    color: var(--text);
+    border: none;
+    border-radius: 10px;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  textarea { resize: vertical; }
+  button {
+    margin-top: 1.4rem;
+    margin-right: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:active { transform: scale(0.97); }
+  #openBtn { background: var(--field); color: var(--accent); }
+  #openBtn:hover { background: var(--border); }
+  pre {
+    background: var(--mono-bg);
+    color: var(--mono-text);
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.85rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    margin: 0;
+  }
+  .error { color: var(--error); }
+  audio { width: 100%; margin-top: 1.25rem; }
+  .row { display: flex; gap: 0.75rem; }
+  .row > div { flex: 1; }
+  details { margin-top: 1.4rem; border-top: 1px solid var(--border); padding-top: 0.9rem; }
+  summary { cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--muted); }
+  details label { font-weight: 600; }
+  .checkbox-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 1.1rem; }
+  .checkbox-row input { width: auto; margin: 0; accent-color: var(--accent); }
+  .checkbox-row label { margin: 0; font-weight: 500; color: var(--text); }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .copy-btn {
+    margin: 0;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .copy-btn:hover { background: var(--field); color: var(--text); }
+  .status-pill {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    margin-bottom: 0.6rem;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+  .status-pill.error { background: color-mix(in srgb, var(--error) 14%, transparent); color: var(--error); }
+</style>
+</head>
+<body>
+<span class="eyebrow">TTS API Demo</span>
+<h1>Readium Speech Server</h1>
+<p>Talks to <code>GET /v1/voices</code> and <code>POST /v1/synthesize</code> on this same origin.</p>
+
+<div class="card">
+  <label for="text">Utterance</label>
+  <textarea id="text" rows="3">Hello, this is a test.</textarea>
+
+  <div class="row">
+    <div>
+      <label for="langFilter">Filter by language</label>
+      <select id="langFilter"><option value="">All</option></select>
+    </div>
+    <div>
+      <label for="providerFilter">Filter by provider</label>
+      <select id="providerFilter"><option value="">All</option></select>
+    </div>
+    <div>
+      <label for="genderFilter">Filter by gender</label>
+      <select id="genderFilter"><option value="">All</option></select>
+    </div>
+  </div>
+
+  <label for="voice">Voice</label>
+  <select id="voice"></select>
+
+  <label for="format">Format</label>
+  <select id="format">
+    <option value="mp3" selected>mp3 (default)</option>
+    <option value="wav">wav</option>
+    <option value="opus">opus</option>
+  </select>
+
+  <button id="synthBtn">Synthesize (play inline)</button>
+  <button id="openBtn">Open raw response in new tab</button>
+
+  <audio id="player" controls></audio>
+
+  <details id="devTools">
+    <summary>Developer tools — advanced request fields</summary>
+    <div class="row">
+      <div>
+        <label for="speed">Speed</label>
+        <input id="speed" type="number" step="0.1" value="1" />
+      </div>
+      <div>
+        <label for="pitch">Pitch</label>
+        <input id="pitch" type="number" step="0.1" placeholder="provider default" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="bitrate">Bitrate (kbps)</label>
+        <input id="bitrate" type="number" placeholder="provider default" />
+      </div>
+      <div>
+        <label for="sampleRate">Sample rate (Hz)</label>
+        <input id="sampleRate" type="number" placeholder="provider default" />
+      </div>
+    </div>
+    <div class="checkbox-row">
+      <input id="ssml" type="checkbox" />
+      <label for="ssml">Treat utterance as SSML (tags are stripped, not rendered)</label>
+    </div>
+    <div class="checkbox-row">
+      <input id="boundary" type="checkbox" />
+      <label for="boundary">Request word-level timing marks (returns JSON, not raw audio)</label>
+    </div>
+  </details>
+</div>
+
+<h2>Response</h2>
+<div class="card">
+  <span id="statusPill" class="status-pill" style="display:none"></span>
+  <pre id="output">(nothing yet)</pre>
+</div>
+
+<h2>
+  <div class="section-head">
+    <span>Equivalent curl</span>
+    <button type="button" class="copy-btn" id="copyCurl">Copy</button>
+  </div>
+</h2>
+<div class="card"><pre id="curl"></pre></div>
+
+<script>
+const textEl = document.getElementById('text');
+const voiceEl = document.getElementById('voice');
+const formatEl = document.getElementById('format');
+const langFilterEl = document.getElementById('langFilter');
+const providerFilterEl = document.getElementById('providerFilter');
+const genderFilterEl = document.getElementById('genderFilter');
+const speedEl = document.getElementById('speed');
+const pitchEl = document.getElementById('pitch');
+const bitrateEl = document.getElementById('bitrate');
+const sampleRateEl = document.getElementById('sampleRate');
+const ssmlEl = document.getElementById('ssml');
+const boundaryEl = document.getElementById('boundary');
+const outputEl = document.getElementById('output');
+const curlEl = document.getElementById('curl');
+const playerEl = document.getElementById('player');
+const statusPillEl = document.getElementById('statusPill');
+
+function setStatus(status, statusText, isError) {
+  statusPillEl.style.display = 'inline-block';
+  statusPillEl.textContent = `${status} ${statusText}`;
+  statusPillEl.classList.toggle('error', !!isError);
+}
+
+let allVoices = [];
+
+function requestBody() {
+  const output = { format: formatEl.value, speed: parseFloat(speedEl.value) || 1 };
+  if (pitchEl.value) output.pitch = parseFloat(pitchEl.value);
+  if (bitrateEl.value) output.bitrate = parseInt(bitrateEl.value, 10);
+  if (sampleRateEl.value) output.sample_rate = parseInt(sampleRateEl.value, 10);
+  const body = { text: textEl.value, voice: voiceEl.value, output };
+  if (ssmlEl.checked) body.ssml = true;
+  if (boundaryEl.checked) body.boundary = true;
+  return body;
+}
+
+function updateCurl() {
+  const body = JSON.stringify(requestBody());
+  curlEl.textContent =
+    `curl -s -X POST ${location.origin}/v1/synthesize \\\n` +
+    `  -H 'Content-Type: application/json' \\\n` +
+    `  -d '${body}' \\\n` +
+    `  -o speech.${boundaryEl.checked ? 'json' : formatEl.value}`;
+}
+for (const el of [textEl, voiceEl, formatEl, speedEl, pitchEl, bitrateEl, sampleRateEl, ssmlEl, boundaryEl]) {
+  el.addEventListener('input', updateCurl);
+  el.addEventListener('change', updateCurl);
+}
+
+function populateFilterOptions(selectEl, values) {
+  const current = selectEl.value;
+  selectEl.innerHTML = '<option value="">All</option>';
+  for (const v of values) {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    selectEl.appendChild(opt);
+  }
+  selectEl.value = current;
+}
+
+function renderVoiceOptions() {
+  const lang = langFilterEl.value;
+  const provider = providerFilterEl.value;
+  const gender = genderFilterEl.value;
+  const filtered = allVoices.filter(
+    v => (!lang || v.language === lang) &&
+         (!provider || v.provider === provider) &&
+         (!gender || v.gender === gender)
+  );
+  const previous = voiceEl.value;
+  voiceEl.innerHTML = '';
+  for (const v of filtered) {
+    const opt = document.createElement('option');
+    opt.value = v.voiceURI;
+    opt.textContent = `${v.label} (${v.language})`;
+    voiceEl.appendChild(opt);
+  }
+  const stillPresent = filtered.some(v => v.voiceURI === previous);
+  const preferred = filtered.find(v => v.voiceURI === 'urn:readium:tts:pocket:en-alba');
+  voiceEl.value = stillPresent ? previous : (preferred ? preferred.voiceURI : (filtered[0] && filtered[0].voiceURI) || '');
+  updateCurl();
+}
+langFilterEl.addEventListener('change', renderVoiceOptions);
+providerFilterEl.addEventListener('change', renderVoiceOptions);
+genderFilterEl.addEventListener('change', renderVoiceOptions);
+
+async function loadVoices() {
+  const resp = await fetch('/v1/voices');
+  allVoices = await resp.json();
+  populateFilterOptions(langFilterEl, [...new Set(allVoices.map(v => v.language))].sort());
+  const providers = [...new Set(allVoices.map(v => v.provider))].sort();
+  populateFilterOptions(providerFilterEl, providers);
+  if (providers.length) providerFilterEl.value = providers[0];
+  populateFilterOptions(genderFilterEl, [...new Set(allVoices.map(v => v.gender).filter(Boolean))].sort());
+  renderVoiceOptions();
+}
+
+async function synthesize() {
+  statusPillEl.style.display = 'none';
+  outputEl.classList.remove('error');
+  outputEl.textContent = 'Loading...';
+  const resp = await fetch('/v1/synthesize', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody()),
+  });
+  if (!resp.ok) {
+    let detail;
+    try { detail = await resp.json(); } catch { detail = await resp.text(); }
+    setStatus(resp.status, resp.statusText, true);
+    outputEl.classList.add('error');
+    outputEl.textContent = JSON.stringify(detail, null, 2);
+    return null;
+  }
+  if (boundaryEl.checked) {
+    const json = await resp.json();
+    setStatus(resp.status, resp.statusText, false);
+    outputEl.textContent = JSON.stringify({ ...json, audio: `<base64, ${json.audio.length} chars>` }, null, 2);
+    const bytes = Uint8Array.from(atob(json.audio), c => c.charCodeAt(0));
+    return new Blob([bytes], { type: `audio/${json.format}` });
+  }
+  const blob = await resp.blob();
+  setStatus(resp.status, resp.statusText, false);
+  outputEl.textContent = `Content-Type: ${resp.headers.get('content-type')}\nSize: ${blob.size} bytes`;
+  return blob;
+}
+
+document.getElementById('synthBtn').addEventListener('click', async () => {
+  const blob = await synthesize();
+  if (blob) {
+    playerEl.src = URL.createObjectURL(blob);
+    playerEl.play();
+  }
+});
+
+document.getElementById('openBtn').addEventListener('click', async () => {
+  const blob = await synthesize();
+  if (blob) window.open(URL.createObjectURL(blob), '_blank');
+});
+
+document.getElementById('copyCurl').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(curlEl.textContent);
+  const btn = document.getElementById('copyCurl');
+  const original = btn.textContent;
+  btn.textContent = 'Copied';
+  setTimeout(() => { btn.textContent = original; }, 1200);
+});
+
+loadVoices();
+</script>
+</body>
+</html>
