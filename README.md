@@ -42,6 +42,8 @@ curl -s -X POST http://localhost:8000/v1/synthesize \
 
 > **First start** downloads the selected language models (~240 MB each) into a persistent Docker volume. Every restart after that is instant — models are already cached.
 
+**Browser demo:** `http://localhost:8000/demo` (or `:8080` behind nginx in production). A single static page, served same-origin by the app itself — no build step, no extra dependency. Lets you pick a voice (with language/provider/gender filters), type an utterance, and hear it synthesized in-browser, with the equivalent `curl` command and raw response shown alongside. A "Developer tools" panel exposes the rest of the request body (format, bitrate, speed, pitch, sample rate, SSML, word-boundary mode) — fields confirmed to actually affect output are called out separately from ones the current provider silently ignores (see [`docs/API.md`](docs/API.md) "Not implemented").
+
 ### Production
 
 ```bash
