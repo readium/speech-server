@@ -1,8 +1,13 @@
 # Readium Speech Server
 
-A remote text-to-speech HTTP service for the [Readium](https://readium.org) ecosystem. Exposes a uniform API for listing voices and synthesizing speech, backed by open neural TTS models running on CPU — no GPU required.
+> [!IMPORTANT]
+> Readium Speech Server is a proof of concept exploring how TTTS (Text to Speech) models can be either hosted or proxied through a single Web service.
+> 
+> This project is not currently production-ready and it's missing key features such as caching or long term storage options.
 
-Designed to pair with [Readium Speech](https://github.com/readium/speech) and any Readium-compatible reading application.
+A remote text-to-speech HTTP service for the [Readium](https://readium.org) ecosystem. Exposes a uniform API for listing voices and synthesizing speech, backed by open-source models and proxied commercial models.
+
+Designed to pair with [Readium Speech](https://github.com/readium/speech), Readium toolkits or any other application.
 
 ---
 
@@ -10,12 +15,12 @@ Designed to pair with [Readium Speech](https://github.com/readium/speech) and an
 
 | | |
 |---|---|
-| **API** | `GET /v1/voices` · `POST /v1/synthesize` |
-| **Providers** | PocketTTS (v1) · Kokoro, ElevenLabs, Azure (planned) |
+| **API** | `GET /voices` · `POST /synthesize` |
+| **Providers** | PocketTTS · ElevenLabs (planned) |
 | **Languages** | English · French · Italian · German · Spanish · Portuguese |
 | **Formats** | MP3 · WAV · Opus |
-| **Word boundaries** | Schema ready, not yet populated by any provider |
-| **Deployment** | Docker · CPU-only · single named volume for model weights |
+| **Word boundaries** | Planned (ElevenLabs) |
+| **Deployment** | Docker · CPU-only · Single named volume for model weights |
 
 ---
 
@@ -333,16 +338,6 @@ Client
 
 ---
 
-## Provider roadmap
-
-| Provider | Status | Notes |
-|---|---|---|
-| PocketTTS | Current| CPU · 6 languages · 156 voices (26 identities × 6 languages) |
-| Kokoro | Planned | Referenced, not vendored (IP cleanliness) |
-| ElevenLabs | Planned | Proxied · word boundaries supported |
-| Azure Speech | Planned | Proxied · word boundaries supported |
-
----
 
 ## Related projects
 
