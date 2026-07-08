@@ -65,8 +65,10 @@ def create_app() -> FastAPI:
     )
 
     if settings.app_env == "production":
-        app.add_middleware(TrustedHostMiddleware, allowed_hosts=[settings.domain])
-
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=[settings.domain, "localhost", "127.0.0.1"],
+        )
     app.add_middleware(RequestLoggingMiddleware)
     register_error_handlers(app)
 

@@ -9,10 +9,9 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+RUN uv sync --frozen --no-install-project --no-dev
 
 COPY app/ ./app/
-COPY tests/ ./tests/
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
@@ -27,13 +26,12 @@ RUN useradd --system --create-home --uid 1001 appuser \
 
 WORKDIR /app
 
-COPY --from=builder /app/.venv          /app/.venv
-COPY --from=builder /app/app            /app/app
-COPY --from=builder /app/pyproject.toml /app/pyproject.toml
-COPY scripts/entrypoint.sh /app/scripts/entrypoint.sh
+COPY --from=builder --chown=appuser:appuser /app/.venv          /app/.venv
+COPY --from=builder --chown=appuser:appuser /app/app            /app/app
+COPY --from=builder --chown=appuser:appuser /app/pyproject.toml /app/pyproject.toml
+COPY --chown=appuser:appuser scripts/entrypoint.sh /app/scripts/entrypoint.sh
 
-RUN chmod +x /app/scripts/entrypoint.sh \
-    && chown -R appuser:appuser /app
+RUN chmod +x /app/scripts/entrypoint.sh
 
 # HF_HOME=/weights — pocket-tts downloads models here (persisted via named volume)
 ENV PATH="/app/.venv/bin:$PATH" \
