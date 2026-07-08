@@ -94,23 +94,28 @@ require_gum() {
         export PATH="$GUM_BIN_DIR:$PATH"
         return
     fi
-    if [[ "$(uname -s)" != "Darwin" ]]; then
-        err "gum is not installed (used for this wizard's menus/prompts)."
-        printf '  Install: https://github.com/charmbracelet/gum#installation\n\n'
-        exit 1
-    fi
+    local os_name
+    os_name=$(uname -s)
+    case "$os_name" in
+        Darwin|Linux) ;;
+        *)
+            err "gum is not installed (used for this wizard's menus/prompts)."
+            printf '  Install: https://github.com/charmbracelet/gum#installation\n\n'
+            exit 1
+            ;;
+    esac
 
     warn "gum not found — downloading a local copy (no brew/sudo needed)..."
     local arch tag url tmp api_json
     arch=$(uname -m)
-    [[ "$arch" == "arm64" ]] || arch="x86_64"
+    [[ "$arch" == "arm64" || "$arch" == "aarch64" ]] && arch="arm64" || arch="x86_64"
     # Fetch into a variable first, then parse — piping curl straight into
     # `grep -m1` under pipefail lets grep close the pipe early, SIGPIPE-ing
     # curl and killing the script via set -e.
     api_json=$(curl -fsSL https://api.github.com/repos/charmbracelet/gum/releases/latest 2>/dev/null) || true
     tag=$(printf '%s' "$api_json" | grep -m1 '"tag_name"' | cut -d'"' -f4) || true
     tag="${tag:-v0.14.5}"
-    url="https://github.com/charmbracelet/gum/releases/download/${tag}/gum_${tag#v}_Darwin_${arch}.tar.gz"
+    url="https://github.com/charmbracelet/gum/releases/download/${tag}/gum_${tag#v}_${os_name}_${arch}.tar.gz"
 
     mkdir -p "$GUM_BIN_DIR"
     tmp=$(mktemp -d)
@@ -123,8 +128,7 @@ require_gum() {
     else
         rm -rf "$tmp"
         err "Auto-download failed."
-        printf '  Install manually: brew install gum\n'
-        printf '  or see: https://github.com/charmbracelet/gum#installation\n\n'
+        printf '  Install manually: https://github.com/charmbracelet/gum#installation\n\n'
         exit 1
     fi
 }
