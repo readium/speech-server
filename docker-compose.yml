@@ -1,6 +1,7 @@
 services:
   app:
     build: .
+    image: ghcr.io/readium/speech-server:latest
     env_file:
       - .env
     environment:
