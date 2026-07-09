@@ -203,7 +203,7 @@
     "identifier": "urn:readium:tts:pocket:giovanni",
     "language": "it",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
-    "gender": "female",
+    "gender": "male",
     "quality": "veryHigh"
   },
   {
@@ -212,7 +212,7 @@
     "identifier": "urn:readium:tts:pocket:juergen",
     "language": "de",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
-    "gender": "female",
+    "gender": "male",
     "quality": "veryHigh"
   },
   {
