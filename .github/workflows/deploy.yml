@@ -53,4 +53,5 @@ jobs:
             git pull
             docker compose pull app
             docker compose up -d --no-build app
+            docker compose restart nginx
             docker image prune -f
