@@ -49,7 +49,7 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/speech-server
+            cd ~/speech-server
             git pull
             docker compose pull app
             docker compose up -d --no-build app
