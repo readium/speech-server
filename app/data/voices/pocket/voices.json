@@ -6,9 +6,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Anna",
@@ -17,9 +15,7 @@
     "language": "en",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Azelma",
@@ -28,9 +24,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Bill Boerst",
@@ -39,9 +33,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Caro Davy",
@@ -50,9 +42,7 @@
     "language": "en-GB",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Charles",
@@ -61,9 +51,7 @@
     "language": "en",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Cosette",
@@ -72,9 +60,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Eponine",
@@ -83,9 +69,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Eve",
@@ -94,9 +78,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Fantine",
@@ -105,9 +87,7 @@
     "language": "en",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "George",
@@ -116,9 +96,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Jane",
@@ -127,9 +105,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Javert",
@@ -138,9 +114,7 @@
     "language": "en-US",
     "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Jean",
@@ -149,9 +123,7 @@
     "language": "en-US",
     "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Marius",
@@ -160,9 +132,7 @@
     "language": "en-US",
     "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Mary",
@@ -171,9 +141,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Michael",
@@ -182,9 +150,7 @@
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Paul",
@@ -193,9 +159,7 @@
     "language": "en-GB",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Peter Yearsley",
@@ -204,9 +168,7 @@
     "language": "en",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Stuart Bell",
@@ -215,9 +177,7 @@
     "language": "en-GB",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Vera",
@@ -226,9 +186,7 @@
     "language": "en",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Estelle",
@@ -237,9 +195,7 @@
     "language": "fr-fr",
     "otherLanguages": ["en", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Giovanni",
@@ -248,9 +204,7 @@
     "language": "it",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Juergen",
@@ -259,9 +213,7 @@
     "language": "de",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Lola",
@@ -270,9 +222,7 @@
     "language": "es",
     "otherLanguages": ["fr", "en", "de", "it", "pt-PT"],
     "gender": "female",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   },
   {
     "name": "Rafael",
@@ -281,8 +231,6 @@
     "language": "pt-PT",
     "otherLanguages": ["fr", "en", "de", "it", "es"],
     "gender": "male",
-    "quality": "veryHigh",
-    "preloaded": true,
-    "pitchControl": false
+    "quality": "veryHigh"
   }
 ]
