@@ -143,7 +143,7 @@
 <body>
 <span class="eyebrow">TTS API Demo</span>
 <h1>Readium Speech Server</h1>
-<p>Talks to <code>GET /v1/voices</code> and <code>POST /v1/synthesize</code> on this same origin.</p>
+<p>Talks to <code>GET /voices</code> and <code>POST /synthesize</code> on this same origin.</p>
 
 <div class="card">
   <label for="text">Utterance</label>
@@ -266,7 +266,7 @@ function requestBody() {
 function updateCurl() {
   const body = JSON.stringify(requestBody());
   curlEl.textContent =
-    `curl -s -X POST ${location.origin}/v1/synthesize \\\n` +
+    `curl -s -X POST ${location.origin}/synthesize \\\n` +
     `  -H 'Content-Type: application/json' \\\n` +
     `  -d '${body}' \\\n` +
     `  -o speech.${boundaryEl.checked ? 'json' : formatEl.value}`;
@@ -315,7 +315,7 @@ providerFilterEl.addEventListener('change', renderVoiceOptions);
 genderFilterEl.addEventListener('change', renderVoiceOptions);
 
 async function loadVoices() {
-  const resp = await fetch('/v1/voices');
+  const resp = await fetch('/voices');
   allVoices = await resp.json();
   populateFilterOptions(langFilterEl, [...new Set(allVoices.map(v => v.language))].sort());
   const providers = [...new Set(allVoices.map(v => v.provider))].sort();
@@ -329,7 +329,7 @@ async function synthesize() {
   statusPillEl.style.display = 'none';
   outputEl.classList.remove('error');
   outputEl.textContent = 'Loading...';
-  const resp = await fetch('/v1/synthesize', {
+  const resp = await fetch('/synthesize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(requestBody()),

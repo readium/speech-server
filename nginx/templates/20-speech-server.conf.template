@@ -55,7 +55,7 @@ server {
     # meant a normal page load (docs UI, healthz, favicon, multiple parallel
     # requests on a hard refresh) could trip nginx's built-in 503 rate-limit
     # rejection well before actually threatening the synthesis backend.
-    location = /v1/synthesize {
+    location = /synthesize {
         limit_except POST {
             deny all;
         }
@@ -73,7 +73,7 @@ server {
 
         # Headroom above what a real browser opens per origin (~6-8) — this
         # is just a coarse abuse guard for general routes, not the synthesis
-        # concurrency budget (that's the /v1/synthesize block above).
+        # concurrency budget (that's the /synthesize block above).
         limit_conn perip 20;
 
         include /etc/nginx/snippets/proxy-pass.conf;

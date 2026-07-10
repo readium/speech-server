@@ -36,9 +36,11 @@ make dev-docker       # start server — downloads models on first run
 
 Server: `http://localhost:8000` · Interactive docs: `http://localhost:8000/docs` · Demo: `http://localhost:8000/demo`
 
+**Live demo:** [speech-server.readium.org/demo](https://speech-server.readium.org/demo)
+
 **Quick test:**
 ```bash
-curl -s -X POST http://localhost:8000/v1/synthesize \
+curl -s -X POST http://localhost:8000/synthesize \
   -H 'Content-Type: application/json' \
   -d '{"text":"Hello world","voice":"urn:readium:tts:pocket:en-alba"}' \
   -o /tmp/speech.mp3 && open /tmp/speech.mp3

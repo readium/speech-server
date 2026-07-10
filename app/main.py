@@ -6,8 +6,8 @@ from fastapi.responses import FileResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.errors import register_error_handlers
-from app.api.v1.router import v1_router
-from app.api.v1.routes.health import router as health_router
+from app.api.router import router
+from app.api.routes.health import router as health_router
 from app.config.settings import settings
 from app.core.concurrency import init_semaphore
 from app.core.registry import ProviderRegistry
@@ -73,7 +73,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
 
     app.include_router(health_router)
-    app.include_router(v1_router, prefix=settings.api_v1_prefix)
+    app.include_router(router)
 
     @app.get("/demo", include_in_schema=False)
     async def demo() -> FileResponse:
