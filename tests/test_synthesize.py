@@ -5,7 +5,7 @@ from httpx import AsyncClient
 
 _VOICE = "urn:readium:tts:fake:en-US-standard"
 _VOICE_FR = "urn:readium:tts:fake:fr-FR-standard"
-_URL = "/v1/synthesize"
+_URL = "/synthesize"
 _WAV = {"output": {"format": "wav"}}
 
 

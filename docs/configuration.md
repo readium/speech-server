@@ -56,4 +56,4 @@ First-time setup writes `APP_ENV=production` and prompts for `DOMAIN`. `make sta
 
 For local dev, set `APP_ENV=development` in `.env` (`DOMAIN` becomes optional) and use `make dev-docker` — exposes `:8000` directly with no nginx.
 
-nginx rate-limits `/v1/synthesize` (2 req/s, burst 4) and caps connections per IP. A `503` from behind nginx is a plain nginx error page, not the app's Problem Details JSON.
+nginx rate-limits `/synthesize` (2 req/s, burst 4) and caps connections per IP. A `503` from behind nginx is a plain nginx error page, not the app's Problem Details JSON.

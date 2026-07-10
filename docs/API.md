@@ -11,8 +11,8 @@ Base path: `/`. All bodies are `application/json` unless noted.
 - [Authentication](#authentication)
 - [Errors](#errors)
 - [Health](#health)
-- [`GET /voices`](#get-v1voices)
-- [`POST /synthesize`](#post-v1synthesize)
+- [`GET /voices`](#get-voices)
+- [`POST /synthesize`](#post-synthesize)
 - [Not implemented](#not-implemented)
 
 ---
@@ -65,7 +65,7 @@ Pydantic schema errors (`422`) additionally carry an `errors` array (raw Pydanti
 
 ---
 
-## `GET /v1/voices`
+## `GET /voices`
 
 ```
 GET /voices
@@ -167,7 +167,7 @@ Only `text` and `voice` are required; everything else defaults as shown.
 | `text` | string | — | Max `MAX_TEXT_LENGTH` chars (2000 default). Rejected if empty/whitespace after trim |
 | `ssml` | bool | `false` | PocketTTS strips tags before synthesis (regex `<[^>]+>` removal) — no SSML-aware prosody |
 | `language` | string \| null | `null` | Hint only; voice resolution is by `voiceURI`, not `language` |
-| `voice` | string | — | Must exactly match a `voiceURI` from `/v1/voices`. 404 if not found |
+| `voice` | string | — | Must exactly match a `voiceURI` from `/voices`. 404 if not found |
 | `prev_utterance` / `next_utterance` | string \| null | `null` | Accepted, passed into `SynthesisParams`; PocketTTS ignores both |
 | `publication_id` | string \| null | `null` | Accepted, currently unused (reserved for future cache scoping) |
 | `boundary` | bool | `false` | `true` → JSON response with base64 audio + timing marks instead of raw binary |

@@ -4,7 +4,7 @@ from httpx import AsyncClient
 
 @pytest.mark.route
 async def test_list_voices_returns_all(client: AsyncClient) -> None:
-    resp = await client.get("/v1/voices")
+    resp = await client.get("/voices")
     assert resp.status_code == 200
     voices = resp.json()
     assert len(voices) == 2
@@ -15,7 +15,7 @@ async def test_list_voices_returns_all(client: AsyncClient) -> None:
 
 @pytest.mark.route
 async def test_list_voices_shape(client: AsyncClient) -> None:
-    resp = await client.get("/v1/voices")
+    resp = await client.get("/voices")
     voice = resp.json()[0]
     required = (
         "source",
@@ -35,7 +35,7 @@ async def test_list_voices_shape(client: AsyncClient) -> None:
 
 @pytest.mark.route
 async def test_filter_by_language(client: AsyncClient) -> None:
-    resp = await client.get("/v1/voices", params={"language": "en"})
+    resp = await client.get("/voices", params={"language": "en"})
     assert resp.status_code == 200
     voices = resp.json()
     assert len(voices) == 1
@@ -44,13 +44,13 @@ async def test_filter_by_language(client: AsyncClient) -> None:
 
 @pytest.mark.route
 async def test_filter_by_provider(client: AsyncClient) -> None:
-    resp = await client.get("/v1/voices", params={"provider": "fake"})
+    resp = await client.get("/voices", params={"provider": "fake"})
     assert resp.status_code == 200
     assert len(resp.json()) == 2
 
 
 @pytest.mark.route
 async def test_filter_by_unknown_language_returns_empty(client: AsyncClient) -> None:
-    resp = await client.get("/v1/voices", params={"language": "zh"})
+    resp = await client.get("/voices", params={"language": "zh"})
     assert resp.status_code == 200
     assert resp.json() == []

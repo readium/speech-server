@@ -43,7 +43,7 @@ No changes to routes, synthesizer, or voice catalog. Language filtering and boun
 
 ```
 Client
-  └─ POST /v1/synthesize
+  └─ POST /synthesize
        └─ Synthesizer
             ├─ validate text length + content
             ├─ resolve voiceURI → (provider, voiceURI)  (VoiceCatalog)
