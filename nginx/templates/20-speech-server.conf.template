@@ -3,13 +3,30 @@
 # scanning / domain-fronting probes against the container's bare IP).
 server {
     listen 80 default_server;
+    listen 443 ssl default_server;
     server_name _;
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
     return 444;
 }
 
+# HTTP → HTTPS redirect
 server {
     listen 80;
     server_name ${DOMAIN};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
 
     # Docker's embedded DNS (127.0.0.11). A static `upstream {}` block
     # resolves the app container's IP once at nginx startup and caches it
@@ -23,6 +40,7 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options DENY always;
     add_header Referrer-Policy no-referrer always;
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
     # App serves no static files today; costs nothing to block dotfiles anyway.
     location ~ /\. {
