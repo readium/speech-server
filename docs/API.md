@@ -2,7 +2,7 @@
 
 HTTP API for the Readium Speech Server: list voices, synthesize speech. Implements the [Readium Speech](https://github.com/readium/speech) `ReadiumSpeechUtterance` / `ReadiumSpeechVoice` contract plus server-specific extensions, called out below.
 
-Base path: `/v1`. All bodies are `application/json` unless noted.
+Base path: `/`. All bodies are `application/json` unless noted.
 
 ---
 
@@ -11,23 +11,23 @@ Base path: `/v1`. All bodies are `application/json` unless noted.
 - [Authentication](#authentication)
 - [Errors](#errors)
 - [Health](#health)
-- [`GET /v1/voices`](#get-v1voices)
-- [`POST /v1/synthesize`](#post-v1synthesize)
+- [`GET /voices`](#get-voices)
+- [`POST /synthesize`](#post-synthesize)
 - [Not implemented](#not-implemented)
 
 ---
 
 ## Authentication
 
-None enforced today. `API_KEY_ENABLED` / `API_KEY` exist in [config](../README.md#configuration) but no middleware checks them yet — every route is open regardless of the setting. Don't rely on it.
+None enforced today. `API_KEY_ENABLED` / `API_KEY` exist in [configuration](configuration.md) but no middleware checks them yet — every route is open regardless of the setting. Don't rely on it.
 
-In production, nginx sits in front (see [README → Production](../README.md#production)) and rate-limits `/v1/synthesize` (2 req/s, burst 4) plus per-IP connection caps — unrelated to app auth, but the only request throttling that exists.
+In production, nginx sits in front (see [configuration](configuration.md#production-vs-development)) and rate-limits `/synthesize` (2 req/s, burst 4) plus per-IP connection caps — unrelated to app auth, but the only request throttling that exists.
 
 ---
 
 ## Errors
 
-All errors are [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) (`Content-Type: application/problem+json`):
+All errors are [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) (`Content-Type: application/problem+json`):
 
 ```json
 {
@@ -65,13 +65,13 @@ Pydantic schema errors (`422`) additionally carry an `errors` array (raw Pydanti
 
 ---
 
-## `GET /v1/voices`
+## `GET /voices`
 
 ```
-GET /v1/voices
-GET /v1/voices?language=fr
-GET /v1/voices?provider=pocket
-GET /v1/voices?offset=0&limit=20
+GET /voices
+GET /voices?language=fr
+GET /voices?provider=pocket
+GET /voices?offset=0&limit=20
 ```
 
 | Param | Type | Default | Description |
@@ -136,7 +136,7 @@ Headers: `X-Total-Count` (matches before pagination), `X-Offset`, `X-Limit` (omi
 
 ---
 
-## `POST /v1/synthesize`
+## `POST /synthesize`
 
 ```json
 {
@@ -167,7 +167,7 @@ Only `text` and `voice` are required; everything else defaults as shown.
 | `text` | string | — | Max `MAX_TEXT_LENGTH` chars (2000 default). Rejected if empty/whitespace after trim |
 | `ssml` | bool | `false` | PocketTTS strips tags before synthesis (regex `<[^>]+>` removal) — no SSML-aware prosody |
 | `language` | string \| null | `null` | Hint only; voice resolution is by `voiceURI`, not `language` |
-| `voice` | string | — | Must exactly match a `voiceURI` from `/v1/voices`. 404 if not found |
+| `voice` | string | — | Must exactly match a `voiceURI` from `/voices`. 404 if not found |
 | `prev_utterance` / `next_utterance` | string \| null | `null` | Accepted, passed into `SynthesisParams`; PocketTTS ignores both |
 | `publication_id` | string \| null | `null` | Accepted, currently unused (reserved for future cache scoping) |
 | `boundary` | bool | `false` | `true` → JSON response with base64 audio + timing marks instead of raw binary |
@@ -227,4 +227,4 @@ Things the schema or config surfaces but the server doesn't actually do yet:
 - **`id` / `publication_id`** — parsed, not used for caching, idempotency, or dedup.
 - **SSML** — tags are stripped, not interpreted. No prosody control.
 - **MathML** — passed through as plain text; equations get spoken as raw markup.
-- **Providers beyond PocketTTS** — Kokoro, ElevenLabs, Azure are referenced in the provider interface but not wired into `_build_registry()`. See [README → provider roadmap](../README.md#provider-roadmap).
+- **Providers beyond PocketTTS** — ElevenLabs is planned but not yet wired into `_build_registry()`.

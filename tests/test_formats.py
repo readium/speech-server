@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 _VOICE = "urn:readium:tts:fake:en-US-standard"
-_SYNTH = "/v1/synthesize"
+_SYNTH = "/synthesize"
 
 
 def _body(fmt: str) -> dict:  # type: ignore[type-arg]

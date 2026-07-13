@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 
 _VOICE = "urn:readium:tts:fake:en-US-standard"
-_URL = "/v1/synthesize"
+_URL = "/synthesize"
 
 
 @pytest.mark.route
@@ -21,7 +21,7 @@ async def test_text_too_long_returns_413(client: AsyncClient) -> None:
 
 @pytest.mark.route
 async def test_unknown_route_returns_about_blank_problem(client: AsyncClient) -> None:
-    resp = await client.get("/v1/does-not-exist")
+    resp = await client.get("/does-not-exist")
     assert resp.status_code == 404
     assert resp.headers["content-type"] == "application/problem+json"
     body = resp.json()

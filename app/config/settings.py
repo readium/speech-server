@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     host: str = "0.0.0.0"
     port: int = Field(default=8000, gt=0, le=65535)
-    api_v1_prefix: str = "/v1"
     workers: int = Field(default=1, ge=1)
     domain: str = ""
 
