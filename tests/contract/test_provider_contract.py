@@ -62,33 +62,31 @@ class TestProviderContract:
         voices = await provider.list_voices()
         assert len(voices) >= 1
         for v in voices:
-            assert v.voiceURI and v.name and v.language
+            assert v.identifier and v.name and v.language
             assert v.provider == provider.id
-            assert v.engineVoiceId
-            assert v.sampleRate > 0
 
     async def test_voiceuri_is_unique(self, provider: TTSProvider) -> None:
-        uris = [v.voiceURI for v in await provider.list_voices()]
-        assert len(uris) == len(set(uris))
+        ids = [v.identifier for v in await provider.list_voices()]
+        assert len(ids) == len(set(ids))
 
     async def test_synthesize_returns_valid_audio(self, provider: TTSProvider) -> None:
         v = (await provider.list_voices())[0]
-        res = await provider.synthesize(_params(v.voiceURI))
+        res = await provider.synthesize(_params(v.identifier))
         assert res.sample_rate > 0
         assert_valid_pcm(res)
 
     async def test_longer_text_yields_longer_audio(self, provider: TTSProvider) -> None:
         v = (await provider.list_voices())[0]
-        short = await provider.synthesize(_params(v.voiceURI, "Hi."))
-        long_ = await provider.synthesize(_params(v.voiceURI, "Hi. " * 20))
+        short = await provider.synthesize(_params(v.identifier, "Hi."))
+        long_ = await provider.synthesize(_params(v.identifier, "Hi. " * 20))
         assert pcm_duration_seconds(long_) > pcm_duration_seconds(short)
 
     async def test_speed_affects_duration(self, provider: TTSProvider) -> None:
         if provider.id == "pocket":
             pytest.xfail("PocketTTS has no native speed param; ffmpeg atempo not yet implemented.")
         v = (await provider.list_voices())[0]
-        slow = await provider.synthesize(_params(v.voiceURI, speed=0.8))
-        fast = await provider.synthesize(_params(v.voiceURI, speed=1.5))
+        slow = await provider.synthesize(_params(v.identifier, speed=0.8))
+        fast = await provider.synthesize(_params(v.identifier, speed=1.5))
         assert pcm_duration_seconds(fast) < pcm_duration_seconds(slow)
 
     async def test_synthesize_is_async_non_blocking(self, provider: TTSProvider) -> None:

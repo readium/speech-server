@@ -53,8 +53,30 @@ async def test_synthesize_invalid_format_returns_422(client: AsyncClient) -> Non
 
 @pytest.mark.route
 async def test_synthesize_schema_error_returns_422(client: AsyncClient) -> None:
-    resp = await client.post(_URL, json={"text": "Hello", "output": {"format": "wav"}})
+    resp = await client.post(_URL, json={"voice": _VOICE, "output": {"format": "wav"}})  # no text
     assert resp.status_code == 422
+
+
+@pytest.mark.route
+async def test_synthesize_uses_default_voice_when_omitted(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings, "pocket_default_voice", "fake-en-US")  # originalName, not URI
+    resp = await client.post(_URL, json={"text": "Hello", **_WAV})
+    assert resp.status_code == 200
+
+
+@pytest.mark.route
+async def test_synthesize_no_voice_no_default_returns_400(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings, "pocket_default_voice", "")
+    resp = await client.post(_URL, json={"text": "Hello", **_WAV})
+    assert resp.status_code == 400
 
 
 @pytest.mark.route

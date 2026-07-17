@@ -64,6 +64,12 @@ server {
         limit_conn perip 10;
 
         include /etc/nginx/snippets/proxy-pass.conf;
+
+        # TTS inference is CPU-bound and can be slow (24-layer models, long text,
+        # emulated arch) — give synthesis more than the shared 120s read timeout so
+        # a legitimately long generation isn't cut off with a 504. This override must
+        # come AFTER the include, whose 120s would otherwise win.
+        proxy_read_timeout 300s;
     }
 
     location / {

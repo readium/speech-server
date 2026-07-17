@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import ClassVar
 
+from app.domain.enums import Quality
 from app.schemas.audio import AudioResult, SynthesisParams
-from app.schemas.voice import Voice
+from app.schemas.voice import Controls, Voice, voice_language_prefixes
 
 
 class TTSProvider(ABC):
@@ -15,8 +16,10 @@ class TTSProvider(ABC):
     # Empty (default) = language-agnostic; list_voices() returns all voices unfiltered.
     supported_languages: ClassVar[frozenset[str]] = frozenset()
 
-    # True when synthesize() populates AudioResult.boundaries with word timing marks.
-    supports_boundaries: ClassVar[bool] = False
+    # Model-level defaults merged into every voice this provider serves, unless a
+    # voice overrides them (see app/providers/voice_loading.py).
+    default_quality: ClassVar[Quality | None] = None
+    default_controls: ClassVar[Controls] = Controls()
 
     def active_languages(self) -> frozenset[str]:
         """Intersection of global LANGUAGES config and this provider's supported set.
@@ -34,12 +37,14 @@ class TTSProvider(ABC):
         """All voices this provider knows about, regardless of language config."""
 
     async def list_voices(self) -> Sequence[Voice]:
-        """Voices filtered to active_languages(). Providers do NOT override this."""
+        """Voices actually INSTALLED (filtered to active_languages()), reflecting the
+        realtime install state — this is what `GET /voices` serves. Providers do NOT
+        override this."""
         voices = await self._all_voices()
         if not self.supported_languages:
             return voices  # language-agnostic provider: return all
         active = self.active_languages()
-        return [v for v in voices if v.language.split("-")[0].lower() in active]
+        return [v for v in voices if voice_language_prefixes(v) & active]
 
     @abstractmethod
     async def synthesize(self, params: SynthesisParams) -> AudioResult:

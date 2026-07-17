@@ -1,6 +1,13 @@
 # Voices
 
-156 voices across 7 language variants (26 voice identities × 6 languages). Every voice is available in every language — `alba` speaking English, `alba` speaking French, `alba` speaking German, etc. Only languages listed in `LANGUAGES` are loaded at startup (~240 MB RAM per language per worker).
+26 voice identities, each declared **once** — not duplicated per language. A voice has one
+primary `language` and, optionally, `otherLanguages` it's also capable of speaking. The
+identifier has no language segment: it's always `urn:readium:tts:pocket:<name>`, and which
+language to speak is chosen at request time via `SynthesizeRequest.language`.
+
+```
+urn:readium:tts:pocket:alba    # one identifier for Alba, in any installed language
+```
 
 The 26 voice identities, sourced from [kyutai/tts-voices](https://huggingface.co/kyutai/tts-voices):
 
@@ -15,18 +22,37 @@ The 26 voice identities, sourced from [kyutai/tts-voices](https://huggingface.co
 | estelle | female | Unmute production voices |
 | giovanni, lola, juergen, rafael | mixed | Kyutai (language reference voices) |
 
-## Voice URIs
-
-Voice URIs are language-scoped — the same speaker in different languages gets a distinct URI:
-
-```
-urn:readium:tts:pocket:en-alba    # Alba speaking English
-urn:readium:tts:pocket:fr-alba    # Alba speaking French
-urn:readium:tts:pocket:de-alba    # Alba speaking German
-```
-
 Supported language codes: `en`, `fr`, `it`, `de`, `es`, `pt` — derived directly from PocketTTS model names.
+
+## Cross-language voices
+
+Every voice's `otherLanguages` in `voices.json` documents what it's *capable* of, not whether
+it's a *good fit* — an English voice speaking French isn't necessarily natural-sounding. No
+ranking or curation of this exists yet; treat it as aspirational, not a quality signal.
+
+**Which cross-language support actually gets installed is controlled by `VOICE_LANGUAGES`**
+(see [Configuration](configuration.md)):
+
+| Setting | Behavior |
+|---|---|
+| _(empty, default)_ | Each voice is only installed for its primary `language`. Smallest download/RAM footprint. |
+| `*:*` | Every voice is also installed for its `otherLanguages` — but **only** for languages already in `LANGUAGES`. This never triggers downloading a language model you didn't already select; it just lets already-loaded models serve more voices. |
+
+For exact (voice, language) picks instead of the all-or-nothing `*:*` — e.g. only Alba in French,
+or `*:*` minus one voice's Spanish — the same setting takes explicit `voice:lang` pairs
+alongside (or instead of) the wildcard; see
+[Configuration → per-voice language overrides](configuration.md#per-voice-language-overrides).
+
+`GET /voices` reflects what's actually **installed** on this deployment — its `otherLanguages`
+is the installed subset, not the full aspirational list from `voices.json` (see
+[API reference](API.md#get-voices)). `GET /service` summarizes each provider's installed
+languages without repeating it per voice.
 
 ## How it works
 
-PocketTTS pre-computes voice embeddings for every voice × language combination (stored as `.safetensors` files in `kyutai/pocket-tts-without-voice-cloning`). The voice sample is encoded once at model-load time — no per-request cloning overhead.
+PocketTTS pre-computes voice embeddings per voice per language (stored as `.safetensors` files
+under `kyutai/pocket-tts-without-voice-cloning`), sized by the target language's model:
+~5–8 MB into the 6-layer `en`/`it`/`pt` models, ~24–33 MB into the 24-layer `fr`/`de`/`es`. The embedding is warmed once at
+model-load time — no per-request cloning overhead — but only for the (voice, language) pairs
+`VOICE_LANGUAGES` and `LANGUAGES` actually call for. Unused language weights can be reclaimed
+from the Docker volume with `scripts/prune_weights.py` — see [Configuration → disk space](configuration.md).

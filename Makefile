@@ -5,7 +5,7 @@ DC_RUN = $(DC) run --rm --no-deps app
 
 .PHONY: help build dev-docker dev-docker-build test-docker test-integration-docker \
         lint-docker fmt-docker fmt-check-docker typecheck-docker ci-docker \
-        logs start run stop clean configure \
+        logs start run stop clean configure prune-models prune-models-apply \
         sync test lint fmt typecheck ci
 
 help: ## Show this help
@@ -54,6 +54,12 @@ stop: ## Stop the stack
 
 configure: ## Run the interactive setup script
 	bash scripts/configure.sh
+
+prune-models: ## Report weight files that don't match the current env config (dry-run)
+	docker compose exec app python scripts/prune_weights.py
+
+prune-models-apply: ## Delete weight files that don't match the current env config (frees disk)
+	docker compose exec app python scripts/prune_weights.py --apply
 
 clean: ## Remove __pycache__ and .pyc files
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true

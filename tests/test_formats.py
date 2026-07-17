@@ -35,10 +35,10 @@ async def test_opus_returns_audio(client: AsyncClient) -> None:
 
 
 @pytest.mark.route
-async def test_default_format_is_mp3(client: AsyncClient) -> None:
+async def test_default_format_is_wav(client: AsyncClient) -> None:
     resp = await client.post(_SYNTH, json={"text": "Hello", "voice": _VOICE})
     assert resp.status_code == 200
-    assert resp.headers["content-type"] == "audio/mpeg"
+    assert resp.headers["content-type"] == "audio/wav"
 
 
 @pytest.mark.route

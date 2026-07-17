@@ -8,9 +8,9 @@ async def test_list_voices_returns_all(client: AsyncClient) -> None:
     assert resp.status_code == 200
     voices = resp.json()
     assert len(voices) == 2
-    uris = {v["voiceURI"] for v in voices}
-    assert "urn:readium:tts:fake:en-US-standard" in uris
-    assert "urn:readium:tts:fake:fr-FR-standard" in uris
+    ids = {v["identifier"] for v in voices}
+    assert "urn:readium:tts:fake:en-US-standard" in ids
+    assert "urn:readium:tts:fake:fr-FR-standard" in ids
 
 
 @pytest.mark.route
@@ -18,16 +18,12 @@ async def test_list_voices_shape(client: AsyncClient) -> None:
     resp = await client.get("/voices")
     voice = resp.json()[0]
     required = (
-        "source",
-        "label",
         "name",
         "originalName",
-        "voiceURI",
-        "language",
         "provider",
-        "engineVoiceId",
-        "sampleRate",
-        "mimeTypes",
+        "identifier",
+        "language",
+        "controls",
     )
     for field in required:
         assert field in voice, f"Missing field: {field}"

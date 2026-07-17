@@ -28,16 +28,15 @@ async def test_list_voices_nonempty_and_shaped(pocket: PocketTTSProvider) -> Non
     voices = await pocket.list_voices()
     assert len(voices) >= 1
     for v in voices:
-        assert v.voiceURI.startswith("urn:readium:tts:pocket:")
+        assert v.identifier.startswith("urn:readium:tts:pocket:")
         assert v.name and v.language
         assert v.provider == "pocket"
-        assert v.engineVoiceId
-        assert v.sampleRate > 0
+        assert v.quality is not None
 
 
 async def test_voiceuri_unique(pocket: PocketTTSProvider) -> None:
-    uris = [v.voiceURI for v in await pocket.list_voices()]
-    assert len(uris) == len(set(uris))
+    ids = [v.identifier for v in await pocket.list_voices()]
+    assert len(ids) == len(set(ids))
 
 
 async def test_synthesize_returns_valid_pcm(pocket: PocketTTSProvider) -> None:
@@ -46,7 +45,7 @@ async def test_synthesize_returns_valid_pcm(pocket: PocketTTSProvider) -> None:
         text="Hello world, this is a test.",
         ssml=False,
         language="en-US",
-        engineVoiceId=v.engineVoiceId,
+        voice_uri=v.identifier,
         speed=1.0,
         pitch=None,
     )
@@ -63,7 +62,7 @@ async def test_longer_text_yields_more_audio(pocket: PocketTTSProvider) -> None:
             text=text,
             ssml=False,
             language=None,
-            engineVoiceId=v.engineVoiceId,
+            voice_uri=v.identifier,
             speed=1.0,
             pitch=None,
         )
