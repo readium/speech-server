@@ -44,13 +44,26 @@ jobs:
     steps:
       - name: Deploy to GCP VM
         uses: appleboy/ssh-action@v1
+        env:
+          # base64-encoded contents of .env and pocket-tts.env, stored as GitHub
+          # secrets (see docs/deployment.md). base64 avoids newline/quoting issues
+          # over SSH. This is the single source of truth for prod config — never
+          # edit the files on the VM by hand.
+          DOTENV_B64: ${{ secrets.DOTENV_B64 }}
+          POCKET_ENV_B64: ${{ secrets.POCKET_TTS_ENV_B64 }}
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          envs: DOTENV_B64,POCKET_ENV_B64
           script: |
+            set -euo pipefail
             cd ~/speech-server
-            git pull
+            git pull --ff-only
+            # Render env files from the secrets (overwrites whatever's on the VM).
+            printf '%s' "$DOTENV_B64"     | base64 -d > .env
+            printf '%s' "$POCKET_ENV_B64" | base64 -d > pocket-tts.env
+            chmod 600 .env pocket-tts.env
             docker compose pull app
             docker compose up -d --no-build app
             docker compose restart nginx
