@@ -56,7 +56,7 @@
   {
     "name": "Cosette",
     "originalName": "cosette",
-    "identifier": "urn:readium:tts:pocket:caro-davy",
+    "identifier": "urn:readium:tts:pocket:cosette",
     "language": "en-US",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
     "gender": "female",
@@ -181,7 +181,7 @@
   },
   {
     "name": "Vera",
-    "originalName": "Vera",
+    "originalName": "vera",
     "identifier": "urn:readium:tts:pocket:vera",
     "language": "en",
     "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
@@ -192,7 +192,7 @@
     "name": "Estelle",
     "originalName": "estelle",
     "identifier": "urn:readium:tts:pocket:estelle",
-    "language": "fr-fr",
+    "language": "fr-FR",
     "otherLanguages": ["en", "es", "de", "it", "pt-PT"],
     "gender": "female",
     "quality": "veryHigh"
