@@ -29,7 +29,9 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appuser /app/.venv          /app/.venv
 COPY --from=builder --chown=appuser:appuser /app/app            /app/app
 COPY --from=builder --chown=appuser:appuser /app/pyproject.toml /app/pyproject.toml
-COPY --chown=appuser:appuser scripts/entrypoint.sh /app/scripts/entrypoint.sh
+# entrypoint.sh + prune_weights.py both run inside the container (the latter via
+# `make prune-models`); configure.sh/pocket_plan.py are host-only but harmless here.
+COPY --chown=appuser:appuser scripts/ /app/scripts/
 
 RUN chmod +x /app/scripts/entrypoint.sh
 
