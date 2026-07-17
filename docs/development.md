@@ -33,11 +33,15 @@ uv run pytest tests/ -m 'not integration and not slow' -v
 ## Adding a provider
 
 1. Create `app/providers/<name>.py` implementing `TTSProvider`
-2. Declare `id`, `supported_languages`, and `supports_boundaries` as class variables
-3. Implement `_all_voices()` and `synthesize()`
-4. Register in `app/main.py` `_build_registry()`
+2. Declare `id`, `supported_languages`, `default_quality`, and `default_controls` as class variables
+3. If voices come from a JSON file, reuse `app/providers/voice_loading.py` (`VoiceEntry`,
+   `resolve_install_languages`, `build_voice`) — the same install-mode bounding and
+   quality/controls merge PocketTTS uses, so it doesn't get reimplemented per provider
+4. Implement `_all_voices()` and `synthesize()`
+5. Register in `app/main.py` `_build_registry()`
 
-No changes to routes, synthesizer, or voice catalog. Language filtering and boundary capability are inherited automatically from the base class.
+No changes to routes, synthesizer, or voice catalog. Language filtering, quality/controls
+merging, and circuit-breaking are inherited automatically from the base class and core layer.
 
 ## Architecture
 
@@ -46,13 +50,15 @@ Client
   └─ POST /synthesize
        └─ Synthesizer
             ├─ validate text length + content
-            ├─ resolve voiceURI → (provider, voiceURI)  (VoiceCatalog)
+            ├─ resolve voice identifier → (provider, Voice)  (VoiceCatalog)
+            ├─ circuit breaker check  ← per-provider, 503 fast if open
             ├─ provider.synthesize()  ← runs in thread pool, bounded by semaphore
             │    └─ TTSModel.generate_audio()  — CPU inference
-            └─ encode PCM → mp3/opus  (ffmpeg driver)  or  wrap → wav
+            └─ encode PCM → mp3/opus  (ffmpeg driver)  or  wrap → wav (default)
 ```
 
 - Routes are `async`; all CPU-bound inference runs off the event loop via `anyio.to_thread.run_sync`
 - A semaphore (`MAX_CONCURRENT_SYNTHESES`) prevents model thrashing under concurrent load
+- A per-provider circuit breaker (`CIRCUIT_BREAKER_*`) fails fast instead of repeatedly hitting a broken provider
 - Model throughput scales by adding worker processes (`WORKERS`), not threads
 - Model weights live in a named Docker volume — downloaded once, instant on every subsequent start

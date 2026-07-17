@@ -11,6 +11,7 @@ Base path: `/`. All bodies are `application/json` unless noted.
 - [Authentication](#authentication)
 - [Errors](#errors)
 - [Health](#health)
+- [`GET /service`](#get-service)
 - [`GET /voices`](#get-voices)
 - [`POST /synthesize`](#post-synthesize)
 - [Not implemented](#not-implemented)
@@ -46,11 +47,12 @@ Pydantic schema errors (`422`) additionally carry an `errors` array (raw Pydanti
 | Status | `type` suffix | Raised when |
 |---|---|---|
 | 400 | `validation_failed` | `text` is empty or whitespace-only |
-| 404 | `voice_not_found` | `voice` URI not in the registry |
+| 404 | `voice_not_found` | `voice` identifier not in the registry |
+| 404 | `voice_language_unsupported` | The requested `voice` (or `voice` + `language`) isn't served here. Deliberately neutral — it does not reveal *why* (whether a voice/language is installed), only that it's unsupported. Ask `/voices` for what this deployment actually serves |
 | 413 | `payload_too_large` | `text` exceeds `MAX_TEXT_LENGTH` |
 | 422 | `validation_failed` | Request body fails schema validation (wrong type, missing required field, invalid enum value) |
 | 502 | `provider_error` | Provider or ffmpeg failed (bad voice state, generation error, encode failure) |
-| 503 | `service_not_ready` | `/readyz` only — models not loaded, ffmpeg missing, or a provider reports unhealthy |
+| 503 | `service_not_ready` | **During startup** the server accepts connections immediately and loads models in the background — `/synthesize` and `/voices` return 503 until warmup finishes (`/healthz` and `/service` stay up throughout; `/readyz` flips to 200 when ready). Also 503 from `/readyz` if ffmpeg is missing or a provider is unhealthy, and from `/synthesize` when a provider's circuit breaker is open — see [configuration](configuration.md) for `CIRCUIT_BREAKER_*` |
 
 `unsupported_format` (415), `rate_limited` (429), and `provider_timeout` (504) are declared in `app/api/errors.py` for future providers but no current code path raises them — a `429`/`503` seen in production is nginx's own rate/connection limit, a plain nginx error page, not this JSON shape.
 
@@ -65,6 +67,38 @@ Pydantic schema errors (`422`) additionally carry an `errors` array (raw Pydanti
 
 ---
 
+## `GET /service`
+
+```
+GET /service
+```
+
+Server-wide, per-provider **capabilities** — kept separate from `/voices` so this isn't repeated on
+every voice: supported output formats + default, request limits, and per provider the model-level
+`quality`/`controls` and the installed-language summary. The voices themselves are on
+[`GET /voices`](#get-voices). Per-provider details (output specs, voice notes) live in each
+provider's README under `docs/providers/`.
+
+```json
+{
+  "output": {"formats": ["wav", "mp3", "opus"], "default": "wav"},
+  "limits": {"maxTextLength": 2000, "maxConcurrentSyntheses": 2},
+  "providers": [
+    {
+      "id": "pocket",
+      "installedLanguages": ["en"]
+    }
+  ]
+}
+```
+
+`providers[].installedLanguages` reflects `LANGUAGES` + `VOICE_LANGUAGES` as actually configured.
+Model-level `quality`/`controls` aren't repeated here — they're merged into each voice on
+[`GET /voices`](#get-voices) and documented per provider under `docs/providers/`. See
+[configuration](configuration.md).
+
+---
+
 ## `GET /voices`
 
 ```
@@ -76,63 +110,62 @@ GET /voices?offset=0&limit=20
 
 | Param | Type | Default | Description |
 |---|---|---|---|
-| `language` | string | — | Filter by BCP-47 language prefix (`en`, `fr`, ...) |
+| `language` | string | — | Filter by BCP-47 language prefix, matched against a voice's primary `language` **or** `otherLanguages` (`en`, `fr`, ...) |
 | `provider` | string | — | Filter by provider id (`pocket`) |
 | `offset` | int ≥ 0 | `0` | Voices to skip |
 | `limit` | int ≥ 1 | none | Max voices to return |
 
-Response: `200`, `Voice[]`. Null-valued optional fields are omitted (`response_model_exclude_none`).
+The voices **actually installed** on this deployment (realtime): each voice's `language` (primary)
+and `otherLanguages` reflect what's loaded now, bounded by `LANGUAGES` + `VOICE_LANGUAGES`. Model-level
+`quality`/`controls` are merged in per voice. A voice not in this list can't be synthesized here.
+
+Response: `200`, `Voice[]`.
 
 Headers: `X-Total-Count` (matches before pagination), `X-Offset`, `X-Limit` (omitted when `limit` unset).
 
 ### `Voice`
 
+Model-level info (quality default, control support) is declared once per provider and **merged**
+into every voice it serves; a voice only carries a field in `voices.json` when it's voice-specific
+or needs to override that default. `otherLanguages` reflects languages **actually installed** for
+that voice on this deployment, not every language the voice could theoretically support — see
+[configuration](configuration.md).
+
 ```json
 {
-  "source": "json",
-  "label": "Alba (English)",
-  "name": "pocket-en-alba",
+  "name": "Alba",
   "originalName": "alba",
-  "voiceURI": "urn:readium:tts:pocket:en-alba",
-  "language": "en",
-  "gender": "female",
-  "quality": "normal",
-  "pitchControl": false,
-  "preloaded": true,
   "provider": "pocket",
-  "engineVoiceId": "alba",
-  "sampleRate": 24000,
-  "mimeTypes": ["audio/mpeg", "audio/wav", "audio/ogg"],
-  "boundary": false
+  "identifier": "urn:readium:tts:pocket:alba",
+  "language": "en-US",
+  "otherLanguages": [],
+  "gender": "male",
+  "quality": "veryHigh",
+  "controls": {}
 }
 ```
+
+`controls` lists only the **enabled** controls — a control the voice doesn't support is absent
+(pocket supports none, so `{}`). A voice that supported SSML would show `"controls": {"ssml": true}`.
 
 **`ReadiumSpeechVoice`-aligned:**
 
 | Field | Type | Notes |
 |---|---|---|
-| `source` | `"json" \| "browser"` | Always `"json"` — every voice here is server-hosted |
-| `label` | string | Display name |
-| `name` | string | Unique identifier within the Readium ecosystem |
+| `name` | string | Display name |
 | `originalName` | string | Raw engine voice id |
-| `voiceURI` | string | Send this as `SynthesizeRequest.voice` |
-| `language` | string | BCP-47 |
-| `localizedName`, `altNames`, `altLanguage`, `otherLanguages`, `multiLingual`, `children`, `nativeID`, `note` | — | Not populated by any current provider — always omitted |
+| `language` | string | BCP-47, primary |
+| `otherLanguages` | string[] | Additional languages this voice is actually installed for — empty by default (`VOICE_LANGUAGES` unset) |
 | `gender` | `"male" \| "female" \| "neutral" \| null` | |
-| `quality` | `"veryLow"…"veryHigh" \| null` | PocketTTS voices are always `"normal"` |
-| `pitchControl` | bool | `true` = provider accepts `output.pitch`. PocketTTS = `false` |
-| `pitch`, `rate` | float or null | Recommended defaults, if the engine specifies any — currently always `null` |
-| `preloaded` | bool | `true` = model weights already resident, ready without a cold-start delay |
+| `quality` | `"veryLow"…"veryHigh" \| null` | Provider default unless a voice overrides it. PocketTTS voices are always `"veryHigh"` |
 
 **Server extensions (not in `ReadiumSpeechVoice`):**
 
 | Field | Type | Notes |
 |---|---|---|
 | `provider` | string | Backend serving this voice — `"pocket"` today |
-| `engineVoiceId` | string | Opaque, internal — not for client use |
-| `sampleRate` | int | Native PCM rate in Hz (`24000` for PocketTTS) |
-| `mimeTypes` | string[] | Always `["audio/mpeg", "audio/wav", "audio/ogg"]` |
-| `boundary` | bool | `true` = this voice's provider fills `boundaries` on synthesis. Check before setting `boundary: true` on the request — a `false` voice always gets `boundaries: null` back |
+| `identifier` | string | Send this as `SynthesizeRequest.voice` |
+| `controls` | object | `{pitch, speed, ssml, boundary}` booleans — what this voice accepts, merged from the provider's defaults with any voice-specific override. PocketTTS: all `false` |
 
 ---
 
@@ -144,13 +177,13 @@ Headers: `X-Total-Count` (matches before pagination), `X-Offset`, `X-Limit` (omi
   "text": "Ceci est un test.",
   "ssml": false,
   "language": "fr",
-  "voice": "urn:readium:tts:pocket:fr-estelle",
+  "voice": "urn:readium:tts:pocket:estelle",
   "prev_utterance": "La nuit était sombre.",
   "next_utterance": "La pièce était froide.",
   "publication_id": "urn:isbn:9780000000000",
   "boundary": true,
   "output": {
-    "format": "mp3",
+    "format": "wav",
     "bitrate": 64,
     "sample_rate": null,
     "speed": 1.0,
@@ -159,19 +192,19 @@ Headers: `X-Total-Count` (matches before pagination), `X-Offset`, `X-Limit` (omi
 }
 ```
 
-Only `text` and `voice` are required; everything else defaults as shown.
+Only `text` is required; everything else defaults as shown (`voice` falls back to `POCKET_DEFAULT_VOICE`).
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `id` | string \| null | `null` | Client-generated UUID v7 URN. Parsed, logged, **not otherwise used** — no caching or idempotency yet ([roadmap](#not-implemented)) |
 | `text` | string | — | Max `MAX_TEXT_LENGTH` chars (2000 default). Rejected if empty/whitespace after trim |
 | `ssml` | bool | `false` | PocketTTS strips tags before synthesis (regex `<[^>]+>` removal) — no SSML-aware prosody |
-| `language` | string \| null | `null` | Hint only; voice resolution is by `voiceURI`, not `language` |
-| `voice` | string | — | Must exactly match a `voiceURI` from `/voices`. 404 if not found |
+| `language` | string \| null | `null` | For voices installed across more than one language (`VOICE_LANGUAGES=*:*` or an explicit override), picks which installed language to synthesize in; falls back to the voice's primary language if unset or not installed for that voice |
+| `voice` | string \| null | `null` | A voice `identifier` from `/voices`, or a raw `originalName`. 404 if not found. When omitted, falls back to `POCKET_DEFAULT_VOICE`; if that's unset too, `400` |
 | `prev_utterance` / `next_utterance` | string \| null | `null` | Accepted, passed into `SynthesisParams`; PocketTTS ignores both |
 | `publication_id` | string \| null | `null` | Accepted, currently unused (reserved for future cache scoping) |
 | `boundary` | bool | `false` | `true` → JSON response with base64 audio + timing marks instead of raw binary |
-| `output.format` | `"mp3" \| "wav" \| "opus"` | `"mp3"` | `wav` bypasses ffmpeg (fastest); `mp3`/`opus` are ffmpeg-encoded |
+| `output.format` | `"wav" \| "mp3" \| "opus"` | `"wav"` | `wav` bypasses ffmpeg and is highest quality (fastest, no lossy encoding); `mp3`/`opus` are ffmpeg-encoded on request — see [`GET /service`](#get-service) for what's available |
 | `output.bitrate` | int \| null | `null` | kbps for `mp3`/`opus`; ffmpeg default (~128 mp3, ~64 opus) if unset; ignored for `wav` |
 | `output.sample_rate` | int \| null | `null` | **Accepted but not applied** — output is always the model's native rate (24000 Hz for PocketTTS). No resampling happens today |
 | `output.speed` | float | `1.0` | **Accepted but ignored** by PocketTTS (logged at debug level) |
@@ -200,7 +233,7 @@ Only `text` and `voice` are required; everything else defaults as shown.
 |---|---|---|
 | `audio` | string | Base64, encoded in `output.format` |
 | `format` | string | Echoes the requested/default format |
-| `boundaries` | `TimingMark[] \| null` | `null` = voice's provider doesn't support timing (`Voice.boundary == false`) — currently true for **every** voice, since PocketTTS never populates this |
+| `boundaries` | `TimingMark[] \| null` | `null` = this voice doesn't support timing (`Voice.controls.boundary == false`) — currently true for **every** voice, since PocketTTS never populates this |
 
 ### `TimingMark`
 
@@ -222,9 +255,10 @@ No `end` field (next mark's `elapsedTime`, or total duration for the last word, 
 Things the schema or config surfaces but the server doesn't actually do yet:
 
 - **Auth** — `API_KEY_ENABLED` is validated at startup but never enforced on requests.
-- **Word boundaries** — no provider populates `TimingMark`s. Every voice reports `boundary: false`.
+- **Word boundaries** — no provider populates `TimingMark`s. Every voice reports `controls.boundary: false`.
 - **`output.speed` / `output.pitch` / `output.sample_rate`** — accepted, validated, silently ignored by PocketTTS.
 - **`id` / `publication_id`** — parsed, not used for caching, idempotency, or dedup.
 - **SSML** — tags are stripped, not interpreted. No prosody control.
 - **MathML** — passed through as plain text; equations get spoken as raw markup.
+- **Curated cross-language voice quality** — `otherLanguages` in `voices.json` documents what a voice is *capable* of, not whether it's a *good fit* (e.g. an English voice speaking French). No ranking/curation of this is implemented yet — deliberately conservative, pending a listening review.
 - **Providers beyond PocketTTS** — ElevenLabs is planned but not yet wired into `_build_registry()`.

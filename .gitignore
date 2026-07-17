@@ -149,6 +149,7 @@ activemq-data/
 
 # Environments
 .env
+pocket-tts.env
 .envrc
 .venv
 env/

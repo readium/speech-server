@@ -15,10 +15,10 @@ Designed to pair with [Readium Speech](https://github.com/readium/speech), Readi
 
 | | |
 |---|---|
-| **API** | `GET /voices` · `POST /synthesize` |
+| **API** | `GET /service` · `GET /voices` · `POST /synthesize` |
 | **Providers** | PocketTTS · ElevenLabs (planned) |
 | **Languages** | English · French · Italian · German · Spanish · Portuguese |
-| **Formats** | MP3 · WAV · Opus |
+| **Formats** | WAV (default) · MP3 · Opus |
 | **Word boundaries** | Planned (ElevenLabs) |
 | **Deployment** | Docker · CPU-only · Single named volume for model weights |
 
@@ -42,8 +42,8 @@ Server: `http://localhost:8000` · Interactive docs: `http://localhost:8000/docs
 ```bash
 curl -s -X POST http://localhost:8000/synthesize \
   -H 'Content-Type: application/json' \
-  -d '{"text":"Hello world","voice":"urn:readium:tts:pocket:en-alba"}' \
-  -o /tmp/speech.mp3 && open /tmp/speech.mp3
+  -d '{"text":"Hello world","voice":"urn:readium:tts:pocket:alba"}' \
+  -o /tmp/speech.wav && open /tmp/speech.wav
 ```
 
 > **First start** downloads the selected language models (~240 MB each) into a persistent Docker volume. Every restart after that is instant — models are already cached.
@@ -56,6 +56,7 @@ curl -s -X POST http://localhost:8000/synthesize \
 - [Voices](docs/voices.md)
 - [Configuration](docs/configuration.md)
 - [Development](docs/development.md)
+- [Deployment](docs/deployment.md)
 
 ---
 

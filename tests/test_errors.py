@@ -32,12 +32,12 @@ async def test_unknown_route_returns_about_blank_problem(client: AsyncClient) ->
 
 @pytest.mark.route
 async def test_validation_error_includes_field_errors(client: AsyncClient) -> None:
-    resp = await client.post(_URL, json={"text": "Hello"})  # missing required "voice"
+    resp = await client.post(_URL, json={"voice": _VOICE})  # missing required "text"
     assert resp.status_code == 422
     body = resp.json()
     assert body["type"] == "https://readium.org/speech-server/error#validation_failed"
     assert body["title"] == "Invalid Request"
-    assert any(err["loc"] == ["body", "voice"] for err in body["errors"])
+    assert any(err["loc"] == ["body", "text"] for err in body["errors"])
 
 
 @pytest.mark.route

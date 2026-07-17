@@ -57,6 +57,14 @@ class UnsupportedFormat(AppError):
     title = "Unsupported Format"
 
 
+class VoiceLanguageUnsupported(AppError):
+    # Requested voice (or voice+language) isn't served here. Deliberately neutral —
+    # it never reveals *why* (install/config state), only that it's unsupported.
+    status_code = 404
+    code = "voice_language_unsupported"
+    title = "Voice or Language Not Supported"
+
+
 class PayloadTooLarge(AppError):
     status_code = 413
     code = "payload_too_large"

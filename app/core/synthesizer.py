@@ -1,8 +1,9 @@
 import logging
 import struct
 
-from app.api.errors import PayloadTooLarge, RequestValidationFailed
+from app.api.errors import AppError, PayloadTooLarge, RequestValidationFailed, ServiceNotReady
 from app.config.settings import settings
+from app.core.circuit_breaker import CircuitBreakerRegistry
 from app.core.voice_catalog import VoiceCatalog
 from app.domain.enums import AudioFormat
 from app.drivers import ffmpeg as ffmpeg_driver
@@ -38,8 +39,9 @@ logger = logging.getLogger(__name__)
 
 
 class Synthesizer:
-    def __init__(self, catalog: VoiceCatalog) -> None:
+    def __init__(self, catalog: VoiceCatalog, breakers: CircuitBreakerRegistry) -> None:
         self._catalog = catalog
+        self._breakers = breakers
 
     async def synthesize(
         self, request: SynthesizeRequest
@@ -54,13 +56,21 @@ class Synthesizer:
                 detail=f"received {len(text)}, limit is {settings.max_text_length}",
             )
 
-        provider, voice_uri = self._catalog.resolve(request.voice)
-        boundaries_supported = provider.supports_boundaries
+        # POCKET_DEFAULT_VOICE is pocket-scoped by name but the only server-wide
+        # default today; a request may omit voice and inherit it.
+        voice_ref = request.voice or settings.pocket_default_voice
+        if not voice_ref:
+            raise RequestValidationFailed(
+                "no voice specified and no default voice configured (POCKET_DEFAULT_VOICE)"
+            )
+
+        provider, voice = self._catalog.resolve(voice_ref)
+        boundaries_supported = voice.controls.boundary
 
         out = request.output
         logger.info(
             "synthesize voice=%s provider=%s format=%s chars=%d boundary=%s",
-            voice_uri,
+            voice.identifier,
             provider.id,
             out.format.value,
             len(text),
@@ -70,14 +80,26 @@ class Synthesizer:
             text=text,
             ssml=request.ssml,
             language=request.language,
-            voice_uri=voice_uri,
+            voice_uri=voice.identifier,
             speed=out.speed,
             pitch=out.pitch,
             prev_utterance=request.prev_utterance,
             next_utterance=request.next_utterance,
         )
 
-        result: AudioResult = await provider.synthesize(params)
+        breaker = self._breakers.get(provider.id) if settings.circuit_breaker_enabled else None
+        if breaker is not None and not breaker.allow():
+            raise ServiceNotReady(f"Provider '{provider.id}' is temporarily unavailable")
+
+        try:
+            result: AudioResult = await provider.synthesize(params)
+        except AppError:
+            if breaker is not None:
+                breaker.record_failure()
+            raise
+        else:
+            if breaker is not None:
+                breaker.record_success()
 
         if out.format == AudioFormat.WAV:
             audio = _pcm_to_wav(result.pcm, result.sample_rate)

@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from app.core.circuit_breaker import CircuitBreakerRegistry
 from app.core.concurrency import init_semaphore
 from app.core.registry import ProviderRegistry
 from app.core.voice_catalog import VoiceCatalog
@@ -50,6 +51,7 @@ async def client(app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
     await catalog.load()
     app.state.registry = registry
     app.state.voice_catalog = catalog
+    app.state.circuit_breakers = CircuitBreakerRegistry([p.id for p in registry.all()], 5, 30)
     app.state.ready = True
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:

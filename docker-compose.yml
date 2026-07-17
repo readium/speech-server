@@ -4,6 +4,7 @@ services:
     image: ghcr.io/readium/speech-server:latest
     env_file:
       - .env
+      - pocket-tts.env
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
     volumes:

@@ -2,46 +2,35 @@ import functools
 import math
 import struct
 from collections.abc import Sequence
+from typing import ClassVar
 
 from app.core.concurrency import run_inference
 from app.domain.enums import Gender, Quality
 from app.providers.base import TTSProvider
 from app.schemas.audio import AudioResult, SynthesisParams
-from app.schemas.voice import Voice
+from app.schemas.voice import Controls, Voice
 
 _SAMPLE_RATE = 24000  # matches PocketTTS native output
 _FREQ = 440.0  # Hz
 
 _VOICES: list[Voice] = [
     Voice(
-        source="json",
-        label="Fake Voice (English)",
         name="fake-en-US",
         originalName="fake-en-US",
-        voiceURI="urn:readium:tts:fake:en-US-standard",
+        provider="fake",
+        identifier="urn:readium:tts:fake:en-US-standard",
         language="en-US",
         gender=Gender.NEUTRAL,
         quality=Quality.NORMAL,
-        preloaded=True,
-        provider="fake",
-        engineVoiceId="fake-en",
-        sampleRate=_SAMPLE_RATE,
-        mimeTypes=["audio/mpeg", "audio/wav", "audio/ogg"],
     ),
     Voice(
-        source="json",
-        label="Fake Voice (French)",
         name="fake-fr-FR",
         originalName="fake-fr-FR",
-        voiceURI="urn:readium:tts:fake:fr-FR-standard",
+        provider="fake",
+        identifier="urn:readium:tts:fake:fr-FR-standard",
         language="fr-FR",
         gender=Gender.NEUTRAL,
         quality=Quality.NORMAL,
-        preloaded=True,
-        provider="fake",
-        engineVoiceId="fake-fr",
-        sampleRate=_SAMPLE_RATE,
-        mimeTypes=["audio/mpeg", "audio/wav", "audio/ogg"],
     ),
 ]
 
@@ -54,6 +43,8 @@ def _generate_tone(sample_rate: int, duration: float) -> bytes:
 
 class FakeProvider(TTSProvider):
     id = "fake"
+    default_quality: ClassVar[Quality] = Quality.NORMAL
+    default_controls: ClassVar[Controls] = Controls()
 
     async def _all_voices(self) -> Sequence[Voice]:
         return _VOICES

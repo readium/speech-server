@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 
-from app.api.deps import VoiceCatalogDep
+from app.api.deps import VoiceCatalogDep, require_ready
 from app.api.errors import problem_response
 from app.schemas.voice import Voice
 
@@ -11,14 +11,18 @@ router = APIRouter(tags=["voices"])
     "/voices",
     response_model=list[Voice],
     response_model_exclude_none=True,
+    dependencies=[Depends(require_ready)],
     summary="List available TTS voices",
     description=(
-        "Returns voices registered across enabled providers, "
-        "optionally filtered by language or provider. "
-        "Supports pagination via `offset` and `limit`. "
-        "Response headers `X-Total-Count`, `X-Offset`, `X-Limit` reflect the full result set size."
+        "The voices **actually installed** on this deployment (realtime) — each voice's "
+        "`language` and `otherLanguages` reflect what's loaded now, bounded by `LANGUAGES` + "
+        "`VOICE_LANGUAGES`. Model-level `quality`/`controls` are merged in per voice; `controls` "
+        "lists only the enabled ones. Optionally filtered by language or provider; supports "
+        "pagination via `offset` and `limit`. Response headers `X-Total-Count`, `X-Offset`, "
+        "`X-Limit` reflect the full result set size."
     ),
     responses={
+        503: problem_response("Service starting up (models loading)"),
         502: problem_response("Provider unavailable"),
     },
     openapi_extra={
@@ -31,21 +35,20 @@ router = APIRouter(tags=["voices"])
                                 "summary": "All voices",
                                 "value": [
                                     {
-                                        "source": "json",
-                                        "label": "Alba (English)",
-                                        "name": "pocket-en-alba",
+                                        "name": "Alba",
                                         "originalName": "alba",
-                                        "voiceURI": "urn:readium:tts:pocket:en-alba",
-                                        "language": "en",
-                                        "gender": "female",
-                                        "quality": "normal",
-                                        "pitchControl": False,
-                                        "preloaded": True,
                                         "provider": "pocket",
-                                        "engineVoiceId": "alba",
-                                        "sampleRate": 24000,
-                                        "mimeTypes": ["audio/mpeg", "audio/wav", "audio/ogg"],
-                                        "boundary": False,
+                                        "identifier": "urn:readium:tts:pocket:alba",
+                                        "language": "en-US",
+                                        "otherLanguages": [],
+                                        "gender": "male",
+                                        "quality": "veryHigh",
+                                        "controls": {
+                                            "pitch": False,
+                                            "speed": False,
+                                            "ssml": False,
+                                            "boundary": False,
+                                        },
                                     }
                                 ],
                             }

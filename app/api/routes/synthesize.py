@@ -1,9 +1,9 @@
 import base64
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.deps import SynthesizerDep
+from app.api.deps import SynthesizerDep, require_ready
 from app.api.errors import problem_response
 from app.schemas.utterance import SynthesizeRequest
 
@@ -13,12 +13,13 @@ router = APIRouter(tags=["synthesize"])
 @router.post(
     "/synthesize",
     response_model=None,
+    dependencies=[Depends(require_ready)],
     summary="Synthesize speech from text or SSML",
     description=(
         "Accepts an utterance and returns an audio file. "
         "Set `boundary: true` to receive a JSON response with base64-encoded audio "
         "and word-level timing marks. "
-        "Supported formats: `mp3` (default), `wav`, `opus`."
+        "Supported formats: `wav` (default), `mp3`, `opus`."
     ),
     responses={
         200: {
@@ -27,11 +28,12 @@ router = APIRouter(tags=["synthesize"])
                 "or `application/json` with base64 audio + boundaries (`boundary: true`)."
             ),
         },
-        400: problem_response("Empty or whitespace text"),
-        404: problem_response("Voice URI not found"),
+        400: problem_response("Empty text, or no voice given and no default configured"),
+        404: problem_response("Voice not found, or voice/language not supported here"),
         413: problem_response("Text exceeds max length"),
         415: problem_response("Unsupported audio format"),
         422: problem_response("Request schema validation error"),
+        503: problem_response("Service starting up (models loading), or provider unavailable"),
     },
     openapi_extra={
         "requestBody": {
@@ -39,12 +41,12 @@ router = APIRouter(tags=["synthesize"])
                 "application/json": {
                     "examples": {
                         "basic": {
-                            "summary": "Basic request (mp3 default)",
+                            "summary": "Basic request (wav default)",
                             "value": {
                                 "id": "urn:uuid:019f1784-d800-7cc5-9f39-39c1e1ca6fdd",
                                 "text": "Hello, this is a test.",
                                 "language": "en",
-                                "voice": "urn:readium:tts:pocket:en-alba",
+                                "voice": "urn:readium:tts:pocket:alba",
                             },
                         },
                         "opus_32kbps": {
@@ -53,7 +55,7 @@ router = APIRouter(tags=["synthesize"])
                                 "id": "urn:uuid:019f1784-d800-7cc5-9f39-39c1e1ca6fdd",
                                 "text": "Hello, this is a test.",
                                 "language": "en",
-                                "voice": "urn:readium:tts:pocket:en-alba",
+                                "voice": "urn:readium:tts:pocket:alba",
                                 "output": {"format": "opus", "bitrate": 32},
                             },
                         },
@@ -63,7 +65,7 @@ router = APIRouter(tags=["synthesize"])
                                 "id": "urn:uuid:019f178c-cc7c-7bb3-a39b-d185f43d3cc4",
                                 "text": "Ceci est un test.",
                                 "language": "fr",
-                                "voice": "urn:readium:tts:pocket:fr-estelle",
+                                "voice": "urn:readium:tts:pocket:estelle",
                                 "boundary": True,
                             },
                         },
@@ -72,7 +74,7 @@ router = APIRouter(tags=["synthesize"])
                             "value": {
                                 "text": "She opened the door.",
                                 "language": "en",
-                                "voice": "urn:readium:tts:pocket:en-alba",
+                                "voice": "urn:readium:tts:pocket:alba",
                                 "prev_utterance": "It was a dark night.",
                                 "next_utterance": "The room was cold.",
                                 "output": {"format": "mp3", "speed": 0.9},
