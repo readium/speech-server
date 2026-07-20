@@ -25,8 +25,11 @@ class Settings(BaseSettings):
     api_key_enabled: bool = False
     api_key: str = ""
 
-    # Concurrency
-    max_concurrent_syntheses: int = Field(default=2, ge=1)
+    # Concurrency. Safe hardware-blind floor: 1 = never oversubscribe CPU. Each
+    # synthesis uses ~2 cores (pocket-tts's generate→decode pipeline), so a 2-core box
+    # thrashes at 2 under mixed-language load. configure.sh derives a higher value from
+    # nproc/RAM for bigger hardware.
+    max_concurrent_syntheses: int = Field(default=1, ge=1)
 
     # Providers
     enabled_providers: str = "pocket"

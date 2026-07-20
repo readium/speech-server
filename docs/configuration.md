@@ -70,7 +70,7 @@ only ever *adds* cross-language support:
 |---|---|---|
 | `HF_TOKEN` | _(empty)_ | HuggingFace token. Optional — prevents rate-limiting on first-run model downloads. Shared across any provider that pulls models from HF |
 | `WORKERS` | `1` | Uvicorn worker processes. Each loads a full copy of every active language model |
-| `MAX_CONCURRENT_SYNTHESES` | `2` | Max parallel CPU inference jobs per worker |
+| `MAX_CONCURRENT_SYNTHESES` | `1` | Max parallel CPU inference jobs per worker. Each job uses ~2 cores; `configure.sh` derives this from `nproc`/RAM so cores ≈ workers × concurrency × 2 (no oversubscription) |
 | `CIRCUIT_BREAKER_ENABLED` | `true` | Trip a provider's circuit breaker after repeated `synthesize()` failures, returning `503` immediately instead of hammering a broken provider |
 | `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `5` | Consecutive failures before a provider's breaker opens |
 | `CIRCUIT_BREAKER_RECOVERY_SECONDS` | `30` | How long an open breaker waits before allowing one trial call |
@@ -88,7 +88,7 @@ only ever *adds* cross-language support:
 
 | Variable | Default | Description |
 |---|---|---|
-| `LANGUAGES` | _(empty)_ | Comma-separated BCP-47 language codes to **load as base models**. No hardcoded fallback — env-driven; unset means no base models load (no voices served). Size per language is *not* uniform: the 6-layer `en`/`it`/`pt` models are ~219 MB download / ~438 MB RAM; the 24-layer `fr`/`de`/`es` models are ~672 MB download / ~1344 MB RAM (loaded size ~2x the download, measured at startup). Supported: `en fr it de es pt`. This is the ceiling — nothing below can exceed it |
+| `LANGUAGES` | _(empty)_ | Comma-separated BCP-47 language codes to **load as base models**. No hardcoded fallback — env-driven; unset means no base models load (no voices served). Size per language is *not* uniform: the 6-layer `en`/`it`/`de`/`es`/`pt` models are ~219 MB download / ~438 MB RAM; the 24-layer `fr` model is ~672 MB download / ~1344 MB RAM (loaded size ~2x the download, measured at startup). Supported: `en fr it de es pt`. This is the ceiling — nothing below can exceed it |
 | `VOICE_LANGUAGES` | _(empty)_ | Which voices get warmed against which of those loaded models, beyond each voice's own primary — see [Per-voice language overrides](#per-voice-language-overrides) |
 | `POCKET_DEFAULT_VOICE` | _(empty)_ | Default voice when none is specified. No hardcoded fallback — env-driven; empty means the setting is unset |
 
@@ -144,8 +144,8 @@ are approximate.
 
 | Languages | Layers | Download (disk, once) | RAM (per worker) |
 |---|---|---|---|
-| `en` `it` `pt` | 6 | ~219 MB | ~438 MB |
-| `fr` `de` `es` | 24 (`_24l`) | ~672 MB | ~1344 MB |
+| `en` `it` `de` `es` `pt` | 6 | ~219 MB | ~438 MB |
+| `fr` | 24 (`_24l`) | ~672 MB | ~1344 MB |
 
 RAM ≈ 2× the download (measured at startup). This is the dominant cost.
 
