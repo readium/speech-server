@@ -23,13 +23,17 @@ logger = logging.getLogger(__name__)
 
 _VOICES_PATH = Path(__file__).parent.parent / "data" / "voices" / "pocket" / "voices.json"
 
-# BCP-47 prefix → pocket-tts language identifier
+# BCP-47 prefix → pocket-tts language identifier. Default to the fast/small 6-layer model for
+# every language that has one. French is the exception: pocket-tts ships only a 24-layer French
+# (`french_24l`), no 6-layer variant. de/es/it/pt/en also have 24-layer (`_24l`) variants that are
+# higher quality but ~3× larger and ~4× slower — not used here. Making this selectable is deferred
+# (see issue); flip a value to its `_24l` form to opt a language into the heavier model.
 _LANG_MODEL: dict[str, str] = {
     "en": "english",
     "fr": "french_24l",
     "it": "italian",
-    "de": "german_24l",
-    "es": "spanish_24l",
+    "de": "german",
+    "es": "spanish",
     "pt": "portuguese",
 }
 
@@ -59,10 +63,13 @@ class PocketTTSProvider(TTSProvider):
         self._ready = await anyio.to_thread.run_sync(self._load_sync)
 
     def _load_sync(self) -> bool:
-        import torch
         from pocket_tts import TTSModel
 
-        torch.set_num_threads(1)
+        # Do NOT set torch.set_num_threads() here. pocket-tts pins it to 1 itself on
+        # import (models/tts_model.py) by design: each model runs a 2-thread
+        # generate→decode pipeline that already saturates its documented "2 CPU cores"
+        # ceiling. Raising intra-op threads oversubscribes those pipeline threads and
+        # makes inference SLOWER, not faster. Scale throughput with WORKERS, not threads.
 
         enabled = self.active_languages()
         if not enabled:

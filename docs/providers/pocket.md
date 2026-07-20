@@ -51,5 +51,24 @@ re-encoding (the default, and fastest — no ffmpeg). The server can transcode o
 
 ## Constraints
 
-- CPU only; torch ≥ 2.5 CPU build. `en`/`it`/`pt` are 6-layer models; `fr`/`de`/`es` are larger
-  24-layer models (slower, higher quality). Throughput scales by worker processes.
+- CPU only; torch ≥ 2.5 CPU build. Throughput scales by worker processes.
+- **Model variant:** most languages ship both a fast/small **6-layer** model and a slower/bigger
+  higher-quality **24-layer** (`_24l`) one. We default to **6-layer** everywhere it exists.
+  French is the exception — pocket-tts ships only a 24-layer French, so `fr` is always 24-layer.
+
+  | Lang | 6-layer | 24-layer | Used |
+  |---|---|---|---|
+  | `en` | `english` | — | 6-layer |
+  | `fr` | — | `french_24l` | **24-layer (only option)** |
+  | `it` | `italian` | `italian_24l` | 6-layer |
+  | `de` | `german` | `german_24l` | 6-layer |
+  | `es` | `spanish` | `spanish_24l` | 6-layer |
+  | `pt` | `portuguese` | `portuguese_24l` | 6-layer |
+
+  (This is why you see `french_24l` but plain `spanish`/`german` — not an inconsistency; French
+  has no 6-layer.) The mapping lives in `_LANG_MODEL` (`app/providers/pocket_tts.py`). Making the
+  6l/24l choice user-selectable per language is **deferred** pending need — see the follow-up
+  issue.
+- Each model uses ~2 CPU cores via an internal generate→decode pipeline and pins torch to a
+  single intra-op thread itself (on import) — so we don't set `torch.set_num_threads()`. Give
+  the box more cores by running more workers, not more threads per model.

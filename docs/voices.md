@@ -52,7 +52,7 @@ languages without repeating it per voice.
 
 PocketTTS pre-computes voice embeddings per voice per language (stored as `.safetensors` files
 under `kyutai/pocket-tts-without-voice-cloning`), sized by the target language's model:
-~5–8 MB into the 6-layer `en`/`it`/`pt` models, ~24–33 MB into the 24-layer `fr`/`de`/`es`. The embedding is warmed once at
+~5–8 MB into the 6-layer `en`/`it`/`de`/`es`/`pt` models, ~24–33 MB into the 24-layer `fr`. The embedding is warmed once at
 model-load time — no per-request cloning overhead — but only for the (voice, language) pairs
 `VOICE_LANGUAGES` and `LANGUAGES` actually call for. Unused language weights can be reclaimed
 from the Docker volume with `scripts/prune_weights.py` — see [Configuration → disk space](configuration.md).

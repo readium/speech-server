@@ -1,5 +1,6 @@
 import logging
 import struct
+import time
 
 from app.api.errors import AppError, PayloadTooLarge, RequestValidationFailed, ServiceNotReady
 from app.config.settings import settings
@@ -69,12 +70,11 @@ class Synthesizer:
 
         out = request.output
         logger.info(
-            "synthesize voice=%s provider=%s format=%s chars=%d boundary=%s",
+            "synth start voice=%s provider=%s fmt=%s chars=%d",
             voice.identifier,
             provider.id,
             out.format.value,
             len(text),
-            request.boundary,
         )
         params = SynthesisParams(
             text=text,
@@ -91,6 +91,7 @@ class Synthesizer:
         if breaker is not None and not breaker.allow():
             raise ServiceNotReady(f"Provider '{provider.id}' is temporarily unavailable")
 
+        t0 = time.monotonic()
         try:
             result: AudioResult = await provider.synthesize(params)
         except AppError:
@@ -100,12 +101,20 @@ class Synthesizer:
         else:
             if breaker is not None:
                 breaker.record_success()
+        gen_ms = round((time.monotonic() - t0) * 1000, 1)
 
         if out.format == AudioFormat.WAV:
             audio = _pcm_to_wav(result.pcm, result.sample_rate)
-            logger.info("generated wav pcm_bytes=%d output_bytes=%d", len(result.pcm), len(audio))
+            logger.info(
+                "synth done voice=%s fmt=wav gen_ms=%.1f total_ms=%.1f bytes=%d",
+                voice.identifier,
+                gen_ms,
+                round((time.monotonic() - t0) * 1000, 1),
+                len(audio),
+            )
             return (audio, "audio/wav", result.boundaries, boundaries_supported)
 
+        enc_t = time.monotonic()
         encoded = await ffmpeg_driver.encode(
             result.pcm,
             result.sample_rate,
@@ -113,10 +122,14 @@ class Synthesizer:
             ffmpeg_bin=settings.ffmpeg_bin,
             bitrate=out.bitrate,
         )
+        enc_ms = round((time.monotonic() - enc_t) * 1000, 1)
         logger.info(
-            "generated %s pcm_bytes=%d output_bytes=%d",
+            "synth done voice=%s fmt=%s gen_ms=%.1f enc_ms=%.1f total_ms=%.1f bytes=%d",
+            voice.identifier,
             out.format.value,
-            len(result.pcm),
+            gen_ms,
+            enc_ms,
+            round((time.monotonic() - t0) * 1000, 1),
             len(encoded),
         )
         return (

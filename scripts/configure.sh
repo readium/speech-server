@@ -53,6 +53,36 @@ set_env()  { _set_kv "$ENV_FILE" "$1" "$2"; }
 get_penv() { _get_kv "$POCKET_ENV_FILE" "$1"; }
 set_penv() { _set_kv "$POCKET_ENV_FILE" "$1" "$2"; }
 
+# Hardware-derived defaults. pocket-tts uses ~2 CPU cores per synthesis (its
+# generate→decode pipeline; docs: "Uses only 2 CPU cores") and each worker holds a
+# full model copy (~2 GB for en+fr). So 1 worker ≈ 2 cores + ~2 GB RAM. Derive
+# non-thrashing WORKERS / MAX_CONCURRENT_SYNTHESES from the box instead of shipping a
+# static default that only fits one machine. Sets DETECTED_* and SUGGESTED_* globals.
+_detect_hw() {
+    local mem_bytes w_by_core w_by_ram
+    if [[ "$(uname)" == "Darwin" ]]; then
+        DETECTED_CORES=$(sysctl -n hw.ncpu 2>/dev/null || echo 2)
+        mem_bytes=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+        DETECTED_RAM_GB=$(( mem_bytes / 1024 / 1024 / 1024 ))
+    else
+        DETECTED_CORES=$(nproc 2>/dev/null || echo 2)
+        DETECTED_RAM_GB=$(awk '/MemTotal/ {print int($2/1024/1024)}' /proc/meminfo 2>/dev/null || echo 0)
+    fi
+    [[ "$DETECTED_CORES"  -ge 1 ]] || DETECTED_CORES=1
+    [[ "$DETECTED_RAM_GB" -ge 1 ]] || DETECTED_RAM_GB=2   # unknown RAM → assume one worker
+
+    w_by_core=$(( DETECTED_CORES / 2 )); [[ "$w_by_core" -ge 1 ]] || w_by_core=1
+    w_by_ram=$(( DETECTED_RAM_GB / 2 )); [[ "$w_by_ram"  -ge 1 ]] || w_by_ram=1
+    SUGGESTED_WORKERS=$(( w_by_core < w_by_ram ? w_by_core : w_by_ram ))
+}
+
+# Per-worker concurrent syntheses that fit the box's cores without oversubscribing:
+# total 2-core jobs (cores/2) spread across the chosen worker count. Args: <workers>.
+_concurrency_for() {
+    local c=$(( DETECTED_CORES / (2 * $1) ))
+    [[ "$c" -ge 1 ]] && echo "$c" || echo 1
+}
+
 # ── Migrations (one-time, idempotent — safe to call every run) ─────────────────
 _migrate_pocket_env() {
     [[ -f "$ENV_FILE" ]] || return 0
@@ -382,14 +412,21 @@ do_first_setup() {
     hdr "Step 2/5 — Voice coverage"
     _set_coverage
 
-    hdr "Step 3/5 — Workers"
-    WORKERS=$(gum input --placeholder "1" \
-        --header "Uvicorn worker processes (throughput; RAM scales with count — see docs)") || true
-    WORKERS="${WORKERS:-1}"
+    hdr "Step 3/5 — Workers & concurrency"
+    _detect_hw
+    ok "Detected: ${DETECTED_CORES} cores, ~${DETECTED_RAM_GB} GB RAM"
+    WORKERS=$(gum input --placeholder "$SUGGESTED_WORKERS" \
+        --header "Uvicorn workers (each ≈2 cores + ~2 GB RAM; suggested $SUGGESTED_WORKERS)") || true
+    WORKERS="${WORKERS:-$SUGGESTED_WORKERS}"
     case "$WORKERS" in
-        ''|*[!0-9]*|0) warn "Invalid — using 1"; WORKERS=1 ;;
+        ''|*[!0-9]*|0) warn "Invalid — using $SUGGESTED_WORKERS"; WORKERS=$SUGGESTED_WORKERS ;;
     esac
     ok "Workers: $WORKERS"
+
+    # Derive per-worker concurrency for the ACTUAL worker count chosen, so cores stay
+    # ≈ workers × concurrency × 2 and never oversubscribe (which slows every request).
+    MAX_CONCURRENT=$(_concurrency_for "$WORKERS")
+    ok "Max concurrent syntheses/worker: $MAX_CONCURRENT (${DETECTED_CORES} cores ÷ 2 ÷ ${WORKERS} workers)"
 
     hdr "Step 4/5 — HuggingFace Token"
     HF_TOKEN=$(gum input --password --placeholder "hf_..." \
@@ -448,6 +485,7 @@ MAX_TEXT_LENGTH=2000
 EOF
     chmod 600 "$ENV_FILE"
     set_env WORKERS "$WORKERS"
+    set_env MAX_CONCURRENT_SYNTHESES "$MAX_CONCURRENT"
     set_env HF_TOKEN "$HF_TOKEN"
     set_env DOMAIN "$DOMAIN_INPUT"
 
