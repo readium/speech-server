@@ -150,6 +150,7 @@ activemq-data/
 # Environments
 .env
 pocket-tts.env
+elevenlabs.env
 .envrc
 .venv
 env/

@@ -15,6 +15,21 @@ def assert_valid_pcm(result: AudioResult) -> None:
     assert result.sample_rate > 0, "sample_rate must be positive"
 
 
+def audio_len(result: AudioResult) -> int:
+    """Byte length of the audio a provider returned — pre-encoded or raw PCM. A
+    monotonic proxy for duration when the exact codec isn't known (encoded providers)."""
+    return len(result.encoded) if result.encoded is not None else len(result.pcm)
+
+
+def assert_valid_audio(result: AudioResult) -> None:
+    """Provider returned usable audio: pre-encoded bytes + content_type, or raw PCM."""
+    if result.encoded is not None:
+        assert len(result.encoded) > 0, "encoded audio is empty"
+        assert result.content_type, "encoded audio missing content_type"
+    else:
+        assert_valid_pcm(result)
+
+
 def pcm_duration_seconds(result: AudioResult) -> float:
     """Convert PCM byte length to duration in seconds (16-bit mono assumed)."""
     assert result.pcm is not None

@@ -45,17 +45,19 @@ jobs:
       - name: Deploy to GCP VM
         uses: appleboy/ssh-action@v1
         env:
-          # base64-encoded contents of .env and pocket-tts.env, stored as GitHub
-          # secrets (see docs/deployment.md). base64 avoids newline/quoting issues
-          # over SSH. This is the single source of truth for prod config — never
-          # edit the files on the VM by hand.
+          # base64-encoded contents of .env / pocket-tts.env / elevenlabs.env, stored as
+          # GitHub secrets (see docs/deployment.md). base64 avoids newline/quoting issues
+          # over SSH. This is the single source of truth for prod config — never edit the
+          # files on the VM by hand. ELEVENLABS_ENV_B64 is optional (only when ElevenLabs
+          # is enabled); an empty secret leaves elevenlabs.env absent, which is fine.
           DOTENV_B64: ${{ secrets.DOTENV_B64 }}
           POCKET_ENV_B64: ${{ secrets.POCKET_TTS_ENV_B64 }}
+          ELEVENLABS_ENV_B64: ${{ secrets.ELEVENLABS_ENV_B64 }}
         with:
           host: ${{ secrets.GCP_VM_HOST }}
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
-          envs: DOTENV_B64,POCKET_ENV_B64
+          envs: DOTENV_B64,POCKET_ENV_B64,ELEVENLABS_ENV_B64
           script: |
             set -euo pipefail
             cd ~/speech-server
@@ -64,6 +66,11 @@ jobs:
             printf '%s' "$DOTENV_B64"     | base64 -d > .env
             printf '%s' "$POCKET_ENV_B64" | base64 -d > pocket-tts.env
             chmod 600 .env pocket-tts.env
+            # elevenlabs.env only when the secret is set (provider optional).
+            if [ -n "$ELEVENLABS_ENV_B64" ]; then
+              printf '%s' "$ELEVENLABS_ENV_B64" | base64 -d > elevenlabs.env
+              chmod 600 elevenlabs.env
+            fi
             docker compose pull app
             docker compose up -d --no-build app
             docker compose restart nginx

@@ -9,12 +9,13 @@ first-time* convenience only.
 ## How config flows
 
 ```
-local .env / pocket-tts.env  ──base64──▶  GitHub Secrets  ──deploy.yml writes──▶  VM files  ──▶  containers
+local .env / pocket-tts.env / elevenlabs.env  ──base64──▶  GitHub Secrets  ──deploy.yml writes──▶  VM files  ──▶  containers
 ```
 
-`.env` and `pocket-tts.env` are gitignored (they hold secrets). The two GitHub
-secrets `DOTENV_B64` / `POCKET_TTS_ENV_B64` are the single source of truth; the
-deploy job decodes them onto the VM before `docker compose up`.
+`.env`, `pocket-tts.env` and `elevenlabs.env` are gitignored (they hold secrets). The
+GitHub secrets `DOTENV_B64` / `POCKET_TTS_ENV_B64` / `ELEVENLABS_ENV_B64` are the single
+source of truth; the deploy job decodes them onto the VM before `docker compose up`.
+`ELEVENLABS_ENV_B64` is optional — set it only when the ElevenLabs provider is enabled.
 
 ## One-time setup
 
@@ -27,6 +28,7 @@ Then base64-encode each (copy the output):
 ```bash
 base64 -i .env | pbcopy            # macOS; or:  base64 -w0 .env   (Linux)
 base64 -i pocket-tts.env | pbcopy
+base64 -i elevenlabs.env | pbcopy  # only if you use the ElevenLabs provider
 ```
 
 ### 2. GitHub — create the secrets
@@ -36,6 +38,7 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 |---|---|
 | `DOTENV_B64` | base64 of your `.env` |
 | `POCKET_TTS_ENV_B64` | base64 of your `pocket-tts.env` |
+| `ELEVENLABS_ENV_B64` | base64 of your `elevenlabs.env` — **optional**, only when ElevenLabs is enabled. Leave unset to skip it (the file stays absent, which is fine). |
 | `GCP_VM_HOST` / `GCP_VM_USER` / `GCP_SSH_PRIVATE_KEY` | VM SSH access (already set) |
 
 ### 3. VM — prepare once (no config edits)
@@ -52,9 +55,9 @@ once. Nginx serves TLS (see `nginx/` + `DOMAIN`).
 
 **No SSH, no wizard on the VM.** Update the source and redeploy:
 
-1. Edit `.env` / `pocket-tts.env` locally (or re-run the wizard).
+1. Edit `.env` / `pocket-tts.env` / `elevenlabs.env` locally (or re-run the wizard).
 2. Re-base64 and update the corresponding GitHub secret (`DOTENV_B64` /
-   `POCKET_TTS_ENV_B64`).
+   `POCKET_TTS_ENV_B64` / `ELEVENLABS_ENV_B64`).
 3. Push to `main` (or re-run the **Build & Deploy** workflow). The deploy job
    rewrites the VM's env files and restarts.
 

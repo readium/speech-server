@@ -16,10 +16,10 @@ Designed to pair with [Readium Speech](https://github.com/readium/speech), Readi
 | | |
 |---|---|
 | **API** | `GET /service` · `GET /voices` · `POST /synthesize` |
-| **Providers** | PocketTTS · ElevenLabs (planned) |
+| **Providers** | [PocketTTS](docs/providers/pocket.md) (local) · [ElevenLabs](docs/providers/elevenlabs.md) (hosted) |
 | **Languages** | English · French · Italian · German · Spanish · Portuguese |
 | **Formats** | WAV (default) · MP3 · Opus |
-| **Word boundaries** | Planned (ElevenLabs) |
+| **Word boundaries** | ElevenLabs (word-level timing marks) |
 | **Deployment** | Docker · CPU-only · Single named volume for model weights |
 
 ---
@@ -55,6 +55,7 @@ curl -s -X POST http://localhost:8000/synthesize \
 - [API Reference](docs/API.md)
 - [Voices](docs/voices.md)
 - [Configuration](docs/configuration.md)
+- Providers: [PocketTTS](docs/providers/pocket.md) · [ElevenLabs](docs/providers/elevenlabs.md)
 - [Development](docs/development.md)
 - [Deployment](docs/deployment.md)
 
