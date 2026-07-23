@@ -2,23 +2,27 @@
 
 Run `make configure` to generate config via an interactive wizard, or run `bash scripts/configure.sh` directly.
 
-Config is split across two files, both written by the wizard:
+Config is split by scope, all files written by the wizard:
 
 - **`.env`** — server/auth/concurrency/circuit-breaker. Universal, provider-agnostic.
 - **`pocket-tts.env`** — PocketTTS-scoped install config (which languages, which voices in which
-  languages). A later provider (Kokoro, etc.) would get its own equivalent file the same way,
-  since "which languages/voices does this provider install" is inherently per-provider, not
-  global. `pydantic-settings` reads both automatically (`app/config/settings.py`); `pocket-tts.env`
-  simply being absent is not an error. Existing installs are migrated automatically the next time
-  the wizard runs (it moves `LANGUAGES`/`VOICE_INSTALL_MODE`/`POCKET_DEFAULT_VOICE` out of `.env`
-  and into a newly created `pocket-tts.env`, once, silently).
+  languages).
+- **`elevenlabs.env`** — ElevenLabs-scoped config (`ELEVENLABS_API_KEY`, `ELEVENLABS_MODEL_ID`,
+  `ELEVENLABS_LANGUAGES`). Languages are **provider-scoped** — ElevenLabs has its own set here,
+  independent of pocket's `LANGUAGES`. See [providers/elevenlabs.md](providers/elevenlabs.md).
+
+Each provider gets its own env file this way, since "which languages/voices/keys does this provider
+need" is inherently per-provider, not global. `pydantic-settings` reads them all automatically
+(`app/config/settings.py`); a provider env file simply being absent is not an error. Existing
+installs are migrated automatically the next time the wizard runs (it moves
+`LANGUAGES`/`VOICE_INSTALL_MODE`/`POCKET_DEFAULT_VOICE` out of `.env` and into a newly created
+`pocket-tts.env`, once, silently).
 
 ## Setup wizard
 
 `make configure` handles both first-time setup and ongoing management. The top-level menu only
 has universal actions; anything provider-scoped lives behind **Manage provider**, which lists
-registered providers (just `pocket` today) and drops into a provider-specific submenu — the same
-shape a second provider (Kokoro, etc.) would slot into later:
+registered providers (`pocket`, `elevenlabs`) and drops into a provider-specific submenu:
 
 ```
 Readium Speech Server
@@ -80,7 +84,7 @@ only ever *adds* cross-language support:
 | `PORT` | `8000` | Listen port |
 | `MAX_TEXT_LENGTH` | `2000` | Maximum characters per synthesis request |
 | `FFMPEG_BIN` | `ffmpeg` | Path to ffmpeg binary (bundled in the Docker image) |
-| `ENABLED_PROVIDERS` | `pocket` | Comma-separated provider ids to register at startup. Only `pocket` exists today |
+| `ENABLED_PROVIDERS` | `pocket` | Comma-separated provider ids to register at startup: `pocket`, `elevenlabs` |
 | `DEFAULT_PROVIDER` | `pocket` | Must be one of `ENABLED_PROVIDERS` — validated at startup |
 | `DOMAIN` | _(empty)_ | Required when `APP_ENV=production` — used for `TrustedHostMiddleware` and nginx `server_name` |
 
@@ -91,6 +95,20 @@ only ever *adds* cross-language support:
 | `LANGUAGES` | _(empty)_ | Comma-separated BCP-47 language codes to **load as base models**. No hardcoded fallback — env-driven; unset means no base models load (no voices served). Size per language is *not* uniform: the 6-layer `en`/`it`/`de`/`es`/`pt` models are ~219 MB download / ~438 MB RAM; the 24-layer `fr` model is ~672 MB download / ~1344 MB RAM (loaded size ~2x the download, measured at startup). Supported: `en fr it de es pt`. This is the ceiling — nothing below can exceed it |
 | `VOICE_LANGUAGES` | _(empty)_ | Which voices get warmed against which of those loaded models, beyond each voice's own primary — see [Per-voice language overrides](#per-voice-language-overrides) |
 | `POCKET_DEFAULT_VOICE` | _(empty)_ | Default voice when none is specified. No hardcoded fallback — env-driven; empty means the setting is unset |
+
+## Environment variables — `elevenlabs.env`
+
+Only loaded/required when `elevenlabs` is in `ENABLED_PROVIDERS`. Managed by the wizard
+(**Manage provider → elevenlabs**). Full details: [providers/elevenlabs.md](providers/elevenlabs.md).
+
+| Variable | Default | Description |
+|---|---|---|
+| `ELEVENLABS_API_KEY` | _(empty)_ | **Required** when the provider is enabled — startup fails without it. From elevenlabs.io → profile → API key |
+| `ELEVENLABS_MODEL_ID` | `eleven_multilingual_v2` | Model + cost multiplier. `flash_v2_5`/`turbo_v2_5` are 0.5 credits/char (cheapest); `multilingual_v2`/`v3` are 1.0. [Compare](https://elevenlabs.io/docs/models) · [pricing](https://elevenlabs.io/pricing) |
+| `ELEVENLABS_LANGUAGES` | _(empty)_ | ElevenLabs' **own** languages (comma BCP-47, e.g. `en,fr,ja`), separate from pocket's `LANGUAGES` — languages are provider-scoped. Empty = no ElevenLabs voices. Supported: the 29 languages common to all ElevenLabs models (`ar bg cs da de el en es fi fil fr hi hr id it ja ko ms nl pl pt ro ru sk sv ta tr uk zh`) |
+| `ELEVENLABS_DAILY_CHAR_LIMIT` | `0` | Max characters sent to ElevenLabs **per day** so users can't spam it. `0` = unlimited. Resets at 00:00 UTC; over the cap `/synthesize` returns `429 rate_limited`. Pick per your model's rate ([pricing](https://elevenlabs.io/pricing/api) — flash/turbo bill half, so the same cost buys ~2× the characters). Host-wide (shared across workers via a JSON file). Set via wizard: Manage provider → elevenlabs → Set daily limit |
+| `ELEVENLABS_USAGE_FILE` | `/tmp/elevenlabs_usage.json` | Where the daily counter is stored. Point at a volume path to persist the count across container restarts |
+| `ELEVENLABS_BASE_URL` | `https://api.elevenlabs.io` | API base URL — override for testing |
 
 `LANGUAGES` and `VOICE_LANGUAGES` operate at different levels and both matter: `LANGUAGES`
 decides which base language models physically load into RAM at all — any voice whose *primary*
