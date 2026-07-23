@@ -4,7 +4,12 @@ services:
     image: ghcr.io/readium/speech-server:latest
     env_file:
       - .env
-      - pocket-tts.env
+      # Provider-scoped env files. required:false → absent = skipped (matches the app's
+      # own "missing provider env file is not an error" behaviour). Needs Compose ≥ 2.24.
+      - path: pocket-tts.env
+        required: false
+      - path: elevenlabs.env
+        required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
     volumes:

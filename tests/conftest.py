@@ -9,7 +9,7 @@ from app.core.concurrency import init_semaphore
 from app.core.registry import ProviderRegistry
 from app.core.voice_catalog import VoiceCatalog
 from app.main import create_app
-from app.providers.fake import FakeProvider
+from tests.helpers.fake_provider import FakeProvider
 
 
 @pytest.fixture(autouse=True)

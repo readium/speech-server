@@ -27,6 +27,10 @@ def _build_registry() -> ProviderRegistry:
     enabled = {p.strip() for p in settings.enabled_providers.split(",")}
     if "pocket" in enabled:
         registry.register(PocketTTSProvider())
+    if "elevenlabs" in enabled:
+        from app.providers.elevenlabs import ElevenLabsProvider
+
+        registry.register(ElevenLabsProvider())
     return registry
 
 
@@ -107,7 +111,8 @@ def create_app() -> FastAPI:
 
     @app.get("/demo", include_in_schema=False)
     async def demo() -> FileResponse:
-        return FileResponse("app/static/demo.html")
+        # no-cache so the browser always revalidates — avoids serving a stale demo after edits.
+        return FileResponse("app/static/demo.html", headers={"Cache-Control": "no-cache"})
 
     return app
 

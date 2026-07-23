@@ -83,6 +83,8 @@ class Synthesizer:
             voice_uri=voice.identifier,
             speed=out.speed,
             pitch=out.pitch,
+            audio_format=out.format,
+            bitrate=out.bitrate,
             prev_utterance=request.prev_utterance,
             next_utterance=request.next_utterance,
         )
@@ -94,14 +96,31 @@ class Synthesizer:
         t0 = time.monotonic()
         try:
             result: AudioResult = await provider.synthesize(params)
-        except AppError:
-            if breaker is not None:
+        except AppError as exc:
+            # Only provider OUTAGES (5xx) trip the breaker. Client/quota errors — 429 rate
+            # limit (incl. the daily budget), 404 unsupported voice — are not provider failures
+            # and must not open the breaker for everyone.
+            if breaker is not None and exc.status_code >= 500:
                 breaker.record_failure()
             raise
         else:
             if breaker is not None:
                 breaker.record_success()
         gen_ms = round((time.monotonic() - t0) * 1000, 1)
+
+        # Provider already encoded server-side (e.g. ElevenLabs native output) —
+        # return as-is, no local WAV/ffmpeg step.
+        if result.encoded is not None:
+            content_type = result.content_type or ffmpeg_driver.content_type(out.format.value)
+            logger.info(
+                "synth done voice=%s fmt=%s (native) gen_ms=%.1f total_ms=%.1f bytes=%d",
+                voice.identifier,
+                out.format.value,
+                gen_ms,
+                round((time.monotonic() - t0) * 1000, 1),
+                len(result.encoded),
+            )
+            return (result.encoded, content_type, result.boundaries, boundaries_supported)
 
         if out.format == AudioFormat.WAV:
             audio = _pcm_to_wav(result.pcm, result.sample_rate)

@@ -3,296 +3,286 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Speech Server Demo</title>
+<title>Readium Speech Server</title>
 <style>
   :root {
-    --bg: #f2f2f7;
-    --card: #ffffff;
-    --field: #f2f2f7;
-    --border: #e5e5ea;
-    --text: #000000;
-    --muted: #8e8e93;
-    --accent: #007aff;
-    --accent-hover: #0062cc;
-    --mono-bg: #f2f2f7;
-    --mono-text: #1c1c1e;
-    --error: #ff3b30;
-    --ok: #34c759;
+    --bg:      #F4F4F7;
+    --card:    #FFFFFF;
+    --field:   #EEEEF2;
+    --field-2: #F6F6F9;
+    --line:    #E4E4EA;
+    --text:    #1C1C1E;
+    --muted:   #86868B;
+    --accent:  #007AFF;   /* the blue */
+    --accent-2:#5E5CE6;   /* indigo — waveform gradient end */
+    --accent-ink:#FFFFFF;
+    --ok:      #2FA84F;
+    --err:     #E5342A;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
   }
-  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    max-width: 720px;
-    margin: 3rem auto;
-    padding: 0 1.25rem 3rem;
-    line-height: 1.47;
+    margin: 0; font-family: var(--sans);
+    background: radial-gradient(1000px 420px at 82% -12%, rgba(0,122,255,0.06), transparent 60%), var(--bg);
+    color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh;
   }
-  .eyebrow {
-    display: inline-block;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 12%, transparent);
-    padding: 0.2rem 0.6rem;
-    border-radius: 999px;
-    margin-bottom: 0.6rem;
+  .wrap { max-width: 760px; margin: 0 auto; padding: clamp(1.25rem, 4vw, 3rem) 1.25rem 4rem; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 0.6rem; }
+  .onair { width: 9px; height: 9px; border-radius: 50%; background: #C7C7CC; box-shadow: 0 0 0 0 rgba(0,122,255,0.5); flex: none; transition: background 0.2s; }
+  .onair.live { background: var(--accent); animation: pulse 1.4s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,122,255,0.5); } 100% { box-shadow: 0 0 0 10px rgba(0,122,255,0); } }
+  .wordmark { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; color: var(--text); }
+  .wordmark span { color: var(--muted); font-weight: 600; }
+  .endpoints { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); letter-spacing: 0.02em; }
+  h1 { font-size: clamp(2rem, 6vw, 3rem); font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; margin: 2.4rem 0 0.5rem; }
+  h1 .em { color: var(--accent); }
+  .lede { color: var(--muted); font-size: 1rem; margin: 0 0 2rem; max-width: 46ch; }
+
+  .script { background: var(--card); border-radius: 16px; padding: 1.1rem 1.15rem 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 12px 32px -18px rgba(20,20,40,0.18); }
+  .script label { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.4rem; }
+  #text { width: 100%; border: 0; resize: vertical; background: transparent; color: var(--text); font-family: var(--sans); font-size: 1.25rem; line-height: 1.5; padding: 0; min-height: 3.2em; outline: none; }
+  #text::placeholder { color: #B0B0B8; }
+  .script-foot { display: flex; gap: 0.75rem; margin-top: 0.9rem; padding-top: 0.85rem; border-top: 1px solid var(--line); }
+  .script-foot .col { flex: 1; min-width: 0; }
+  select.paper {
+    width: 100%; appearance: none; -webkit-appearance: none;
+    background: var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386868B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
+    border: 1px solid transparent; border-radius: 9px; padding: 0.55rem 2rem 0.55rem 0.7rem;
+    font-family: var(--sans); font-size: 0.95rem; color: var(--text); cursor: pointer;
   }
-  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 0.3rem; }
-  h1 + p { color: var(--muted); margin-top: 0; font-size: 0.95rem; }
-  @media (max-width: 600px) {
-    body { margin: 1.5rem auto; padding: 0 1rem 2rem; }
-    h1 { font-size: 1.5rem; }
-    .card { padding: 1.1rem; border-radius: 12px; }
-    .row { flex-direction: column; gap: 0; }
-    button { width: 100%; margin-right: 0; }
+  select.paper:focus { border-color: var(--accent); background-color: #fff; }
+  .vmeta { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.45rem; min-height: 1.2rem; }
+  .tag { font-family: var(--mono); font-size: 0.66rem; font-weight: 600; letter-spacing: 0.02em; padding: 0.1rem 0.4rem; border-radius: 5px; background: var(--field); color: var(--muted); }
+  .tag.native { background: rgba(0,122,255,0.10); color: var(--accent); }
+  .tag.cross  { background: var(--field); color: var(--muted); }
+
+  .actions { display: flex; align-items: center; gap: 0.7rem; margin-top: 1.1rem; flex-wrap: wrap; }
+  .speak {
+    display: inline-flex; align-items: center; gap: 0.55rem;
+    font-family: var(--sans); font-size: 1rem; font-weight: 700; letter-spacing: -0.01em;
+    color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 11px;
+    padding: 0.7rem 1.4rem; cursor: pointer; transition: transform 0.08s ease, filter 0.15s ease;
+    box-shadow: 0 6px 16px -8px rgba(0,122,255,0.6);
   }
-  h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; margin: 2rem 0 0.5rem 0.25rem; }
-  code { background: var(--field); padding: 0.15rem 0.4rem; border-radius: 6px; font-size: 0.9em; }
-  .card {
-    background: var(--card);
-    border-radius: 14px;
-    padding: 1.5rem;
-    margin-top: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  .speak:hover:not(:disabled) { filter: brightness(1.05); }
+  .speak:active:not(:disabled) { transform: scale(0.97); }
+  .speak:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  .speak .tri { width: 0; height: 0; border-left: 9px solid currentColor; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+  .ghost {
+    font-family: var(--sans); font-size: 0.9rem; font-weight: 600; color: var(--text);
+    background: var(--card); border: 1px solid var(--line); border-radius: 11px;
+    padding: 0.65rem 1rem; cursor: pointer; transition: border-color 0.15s, background 0.15s;
   }
-  label { display: block; margin-top: 1.1rem; font-weight: 600; font-size: 0.85rem; color: var(--muted); }
-  label:first-child { margin-top: 0; }
-  input, select, textarea {
-    width: 100%;
-    padding: 0.6rem 0.75rem;
-    font-size: 1rem;
-    font-family: inherit;
-    margin-top: 0.4rem;
-    background: var(--field);
-    color: var(--text);
-    border: none;
-    border-radius: 10px;
+  .ghost:hover:not(:disabled) { border-color: #C7C7CC; background: var(--field-2); }
+  .ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+  .fmt { margin-left: auto; display: flex; align-items: center; gap: 0.4rem; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  select.dark {
+    appearance: none; -webkit-appearance: none;
+    background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386868B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.6rem center;
+    color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.4rem 1.7rem 0.4rem 0.6rem; font-family: var(--mono); font-size: 0.75rem; cursor: pointer;
   }
-  input:focus, select:focus, textarea:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
+
+  .monitor { margin-top: 1.5rem; opacity: 0; transform: translateY(6px); transition: opacity 0.35s ease, transform 0.35s ease; }
+  .monitor.show { opacity: 1; transform: none; }
+  .scope { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0.9rem; display: flex; align-items: center; gap: 0.9rem; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .transport { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--line); background: var(--field-2); color: var(--accent); display: grid; place-items: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .transport:hover:not(:disabled) { border-color: var(--accent); background: #fff; }
+  .transport:disabled { color: #C7C7CC; cursor: default; }
+  .transport .tri { width:0;height:0; border-left: 11px solid currentColor; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 2px; }
+  .transport .pause { display: none; gap: 3px; }
+  .transport .pause i { width: 3.5px; height: 14px; background: currentColor; border-radius: 1px; }
+  .transport.playing .tri { display: none; }
+  .transport.playing .pause { display: flex; }
+  #wave { flex: 1; min-width: 0; height: 68px; width: 100%; cursor: pointer; display: block; touch-action: none; }
+  .time { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); flex: none; min-width: 4.6ch; text-align: right; }
+
+  .metrics { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.8rem; }
+  .metric { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); padding: 0.28rem 0.55rem; border: 1px solid var(--line); border-radius: 7px; background: var(--card); }
+  .metric b { color: var(--text); font-weight: 700; }
+  .metric.rt b { color: var(--ok); }
+
+  .banner { margin-top: 1rem; padding: 0.7rem 0.9rem; border-radius: 10px; font-size: 0.85rem; display: none; border: 1px solid; font-family: var(--mono); }
+  .banner.err { display:block; color: var(--err); border-color: rgba(229,52,42,0.3); background: rgba(229,52,42,0.06); }
+
+  details { margin-top: 1.4rem; border-top: 1px solid var(--line); }
+  summary { list-style: none; cursor: pointer; padding: 0.9rem 0.1rem 0.3rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); display: flex; align-items: center; gap: 0.5rem; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+"; font-family: var(--mono); font-weight: 700; color: var(--accent); }
+  details[open] summary::before { content: "–"; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 0.6rem; }
+  .field label { display:block; font-size: 0.7rem; font-weight: 600; color: var(--muted); margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .field input, .field select {
+    width: 100%; appearance: none; -webkit-appearance: none;
+    background: var(--field); color: var(--text); border: 1px solid transparent; border-radius: 9px;
+    padding: 0.5rem 0.65rem; font-family: var(--mono); font-size: 0.85rem;
   }
-  input:disabled, select:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2386868B' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position: right 0.6rem center; padding-right: 1.8rem; }
+  .field input:focus, .field select:focus { border-color: var(--accent); background-color: #fff; }
+  .field input:disabled, .field select:disabled { opacity: 0.4; }
+  .checks { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .check { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text); cursor: pointer; }
+  .check input { width: 17px; height: 17px; accent-color: var(--accent); }
+  .check.off { opacity: 0.4; }
+  .check small { color: var(--muted); }
+
+  .api-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .copy { font-family: var(--mono); font-size: 0.68rem; font-weight: 600; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 0.2rem 0.6rem; cursor: pointer; }
+  .copy:hover { color: var(--text); border-color: #C7C7CC; }
+  pre { margin: 0.6rem 0 0; background: var(--field-2); border: 1px solid var(--line); border-radius: 10px; padding: 0.85rem 0.95rem; overflow-x: auto; font-family: var(--mono); font-size: 0.78rem; color: #3A3A3C; white-space: pre-wrap; word-break: break-word; }
+  pre .status { color: var(--ok); font-weight: 700; }
+  pre .status.bad { color: var(--err); font-weight: 700; }
+
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  @media (max-width: 560px) {
+    .script-foot { flex-direction: column; }
+    .fmt { margin-left: 0; width: 100%; justify-content: space-between; }
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 2rem; }
   }
-  textarea { resize: vertical; }
-  button {
-    margin-top: 1.4rem;
-    margin-right: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #fff;
-    background: var(--accent);
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.15s ease, transform 0.1s ease;
+  @media (prefers-reduced-motion: reduce) {
+    .onair.live { animation: none; }
+    .monitor { transition: none; }
   }
-  button:hover:not(:disabled) { background: var(--accent-hover); }
-  button:active:not(:disabled) { transform: scale(0.97); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  #openBtn { background: var(--field); color: var(--accent); }
-  #openBtn:hover:not(:disabled) { background: var(--border); }
-  pre {
-    background: var(--mono-bg);
-    color: var(--mono-text);
-    padding: 0.9rem 1rem;
-    border-radius: 10px;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-size: 0.85rem;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    margin: 0;
-  }
-  .error { color: var(--error); }
-  audio { width: 100%; margin-top: 1.25rem; }
-  .row { display: flex; gap: 0.75rem; }
-  .row > div { flex: 1; }
-  details { margin-top: 1.4rem; border-top: 1px solid var(--border); padding-top: 0.9rem; }
-  summary { cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--muted); }
-  details label { font-weight: 600; }
-  .hint { font-size: 0.75rem; color: var(--muted); font-weight: 400; margin-left: 0.35rem; }
-  .checkbox-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 1.1rem; }
-  .checkbox-row input { width: auto; margin: 0; accent-color: var(--accent); }
-  .checkbox-row label { margin: 0; font-weight: 500; color: var(--text); }
-  .checkbox-row.disabled label { opacity: 0.4; }
-  .section-head { display: flex; align-items: baseline; justify-content: space-between; }
-  .copy-btn {
-    margin: 0;
-    padding: 0.2rem 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--muted);
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-  }
-  .copy-btn:hover { background: var(--field); color: var(--text); }
-  .status-pill {
-    display: inline-block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    padding: 0.15rem 0.55rem;
-    border-radius: 999px;
-    margin-bottom: 0.6rem;
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
-    color: var(--accent);
-  }
-  .status-pill.error { background: color-mix(in srgb, var(--error) 14%, transparent); color: var(--error); }
-  /* loading indicator (replaces the player while synthesizing) */
-  .loading {
-    display: none;
-    align-items: center;
-    gap: 0.6rem;
-    margin-top: 1.25rem;
-    color: var(--muted);
-    font-size: 0.9rem;
-  }
-  .loading.active { display: flex; }
-  .spinner {
-    width: 18px; height: 18px;
-    border: 2.5px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  /* metrics badges */
-  .metrics { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; }
-  .metric {
-    font-size: 0.75rem; font-weight: 600;
-    padding: 0.15rem 0.55rem; border-radius: 999px;
-    background: var(--field); color: var(--mono-text);
-  }
-  .metric strong { color: var(--accent); }
-  .metric.rt strong { color: var(--ok); }
 </style>
 </head>
 <body>
-<span class="eyebrow">TTS API Demo</span>
-<h1>Readium Speech Server</h1>
-<p>Talks to <code>GET /service</code>, <code>GET /voices</code> and <code>POST /synthesize</code> on this same origin.</p>
+<div class="wrap">
+  <header>
+    
+    <span class="endpoints">POST /synthesize · GET /voices · GET /service</span>
+  </header>
 
-<div class="card">
-  <div class="row">
-    <div>
-      <label for="language">Language</label>
-      <select id="language"></select>
-    </div>
-    <div>
-      <label for="voice">Voice <span class="hint" id="voiceHint"></span></label>
-      <select id="voice"></select>
+  <h1>Readium speech server <span class="em">demo</span></h1>
+  <p class="lede">A live console for the Readium Speech Server. Write a line, pick a voice, and listen,  the waveform is the real audio the API returns.</p>
+
+  <div class="script">
+    <label for="text">Text</label>
+    <textarea id="text" rows="2" placeholder="Write something to be spoken…"></textarea>
+    <div class="script-foot">
+      <div class="col">
+        <label for="language">Language</label>
+        <select id="language" class="paper"></select>
+      </div>
+      <div class="col">
+        <label for="voice">Voice</label>
+        <select id="voice" class="paper"></select>
+        <div class="vmeta" id="vmeta"></div>
+      </div>
     </div>
   </div>
 
-  <label for="text">Utterance</label>
-  <textarea id="text" rows="3">Welcome to Readium. This is the Speech Server reading your text aloud, one voice at a time.</textarea>
+  <div class="actions">
+    <button class="speak" id="speakBtn"><span class="tri"></span><span id="speakLabel">Speak</span></button>
+    <button class="ghost" id="downloadBtn" disabled>Download</button>
+    <span class="fmt">
+      <label for="format" style="text-transform:uppercase;letter-spacing:0.06em;">Format</label>
+      <select id="format" class="dark"></select>
+    </span>
+  </div>
 
-  <label for="format">Output format</label>
-  <select id="format"></select>
+  <div class="banner" id="banner"></div>
 
-  <button id="synthBtn">Synthesize (play inline)</button>
-  <button id="openBtn">Open raw response in new tab</button>
-
-  <div class="loading" id="loading"><span class="spinner"></span><span>Synthesizing…</span></div>
-  <audio id="player" controls style="display:none"></audio>
-
-  <details id="devTools">
-    <summary>Developer tools — advanced request fields</summary>
-    <p class="hint" style="margin:0.6rem 0 0">Fields the selected voice doesn't support are disabled.</p>
-    <div class="row">
-      <div>
-        <label for="speed">Speed</label>
-        <input id="speed" type="number" step="0.1" value="1" />
-      </div>
-      <div>
-        <label for="pitch">Pitch</label>
-        <input id="pitch" type="number" step="0.1" placeholder="default" />
-      </div>
+  <div class="monitor" id="monitor">
+    <div class="scope">
+      <button class="transport" id="playBtn" aria-label="Play or pause">
+        <span class="tri"></span><span class="pause"><i></i><i></i></span>
+      </button>
+      <canvas id="wave"></canvas>
+      <span class="time" id="time">0:00</span>
     </div>
-    <div class="row">
-      <div>
-        <label for="bitrate">Bitrate</label>
-        <select id="bitrate">
-          <option value="">default</option>
-          <option value="32">32 kbps</option>
-          <option value="64">64 kbps</option>
-          <option value="96">96 kbps</option>
-          <option value="128">128 kbps</option>
-          <option value="192">192 kbps</option>
-        </select>
+    <div class="metrics" id="metrics"></div>
+  </div>
+
+  <details id="adv">
+    <summary>Advanced options</summary>
+    <div class="grid">
+      <div class="field"><label for="speed">Speed</label><input id="speed" type="number" step="0.1" value="1" /></div>
+      <div class="field"><label for="pitch">Pitch</label><input id="pitch" type="number" step="0.1" placeholder="default" /></div>
+      <div class="field"><label for="bitrate">Bitrate</label>
+        <select id="bitrate"><option value="">default</option><option value="32">32 kbps</option><option value="64">64 kbps</option><option value="96">96 kbps</option><option value="128">128 kbps</option><option value="192">192 kbps</option></select>
       </div>
-      <div>
-        <label for="sampleRate">Sample rate</label>
-        <select id="sampleRate">
-          <option value="">default (24000)</option>
-          <option value="16000">16000 Hz</option>
-          <option value="24000">24000 Hz</option>
-          <option value="48000">48000 Hz</option>
-        </select>
+      <div class="field"><label for="sampleRate">Sample rate</label>
+        <select id="sampleRate"><option value="">default</option><option value="16000">16000 Hz</option><option value="24000">24000 Hz</option><option value="48000">48000 Hz</option></select>
       </div>
     </div>
-    <div class="checkbox-row" id="ssmlRow">
-      <input id="ssml" type="checkbox" />
-      <label for="ssml">Treat utterance as SSML</label>
+    <div class="checks">
+      <label class="check" id="ssmlRow"><input id="ssml" type="checkbox" /> Treat text as SSML</label>
+      <label class="check" id="boundaryRow"><input id="boundary" type="checkbox" /> Word timing marks <small>— response returns JSON</small></label>
     </div>
-    <div class="checkbox-row" id="boundaryRow">
-      <input id="boundary" type="checkbox" />
-      <label for="boundary">Request word-level timing marks (returns JSON)</label>
+  </details>
+
+  <details id="apiPanel">
+    <summary>API request</summary>
+    <div class="api-head" style="margin-top:0.4rem;">
+      <span class="endpoints">curl</span>
+      <button class="copy" id="copyCurl">Copy</button>
     </div>
+    <pre id="curl"></pre>
+    <div class="api-head" style="margin-top:0.9rem;"><span class="endpoints">response</span></div>
+    <pre id="output">Nothing spoken yet.</pre>
   </details>
 </div>
 
-<h2>Response</h2>
-<div class="card">
-  <span id="statusPill" class="status-pill" style="display:none"></span>
-  <div class="metrics" id="metrics" style="display:none"></div>
-  <pre id="output">(nothing yet)</pre>
-</div>
-
-<h2>
-  <div class="section-head">
-    <span>Equivalent curl</span>
-    <button type="button" class="copy-btn" id="copyCurl">Copy</button>
-  </div>
-</h2>
-<div class="card"><pre id="curl"></pre></div>
+<audio id="player" style="display:none"></audio>
 
 <script>
 const el = id => document.getElementById(id);
-const textEl = el('text'), voiceEl = el('voice'), formatEl = el('format'), languageEl = el('language');
-const speedEl = el('speed'), pitchEl = el('pitch'), bitrateEl = el('bitrate'), sampleRateEl = el('sampleRate');
-const ssmlEl = el('ssml'), boundaryEl = el('boundary');
-const outputEl = el('output'), curlEl = el('curl'), playerEl = el('player'), statusPillEl = el('statusPill');
-const loadingEl = el('loading'), metricsEl = el('metrics'), voiceHintEl = el('voiceHint');
-const synthBtn = el('synthBtn'), openBtn = el('openBtn');
+const textEl=el('text'), voiceEl=el('voice'), formatEl=el('format'), languageEl=el('language'), vmetaEl=el('vmeta');
+const speedEl=el('speed'), pitchEl=el('pitch'), bitrateEl=el('bitrate'), sampleRateEl=el('sampleRate');
+const ssmlEl=el('ssml'), boundaryEl=el('boundary');
+const outputEl=el('output'), curlEl=el('curl'), player=el('player'), bannerEl=el('banner');
+const speakBtn=el('speakBtn'), speakLabel=el('speakLabel'), downloadBtn=el('downloadBtn');
+const monitor=el('monitor'), playBtn=el('playBtn'), waveEl=el('wave'), timeEl=el('time'), metricsEl=el('metrics'), onair=el('onair');
 
-// Sample utterances per language (swapped in when the language changes), keyed by prefix.
 const SAMPLES = {
-  en: "Welcome to Readium. This is the Speech Server reading your text aloud, one voice at a time.",
-  fr: "Bienvenue sur Readium. Voici le serveur de synthèse vocale qui lit votre texte à voix haute.",
-  es: "Bienvenido a Readium. Este es el servidor de voz que lee tu texto en voz alta.",
-  de: "Willkommen bei Readium. Dies ist der Sprachserver, der Ihren Text laut vorliest.",
-  it: "Benvenuto su Readium. Questo è il server vocale che legge il tuo testo ad alta voce.",
-  pt: "Bem-vindo ao Readium. Este é o servidor de voz que lê o seu texto em voz alta.",
+  en:"Welcome to Readium. This is the Speech Server reading your text aloud, one voice at a time.",
+  fr:"Bienvenue sur Readium. Voici le serveur de synthèse vocale qui lit votre texte à voix haute.",
+  es:"Bienvenido a Readium. Este es el servidor de voz que lee tu texto en voz alta.",
+  de:"Willkommen bei Readium. Dies ist der Sprachserver, der Ihren Text laut vorliest.",
+  it:"Benvenuto su Readium. Questo è il server vocale che legge il tuo testo ad alta voce.",
+  pt:"Bem-vindo ao Readium. Este é o servidor de voz que lê o seu texto em voz alta.",
+  hi:"नमस्ते। यह रीडियम स्पीच सर्वर है, जो आपका पाठ ज़ोर से पढ़कर सुनाता है।",
+  ja:"ようこそ Readium へ。これはあなたのテキストを読み上げる音声サーバーです。",
+  zh:"欢迎使用 Readium。这是一个为您朗读文本的语音服务器。",
+  ko:"Readium에 오신 것을 환영합니다. 텍스트를 소리 내어 읽어 주는 음성 서버입니다.",
+  ar:"مرحبًا بك في Readium. هذا خادم الكلام الذي يقرأ نصك بصوت عالٍ.",
+  ru:"Добро пожаловать в Readium. Это речевой сервер, который читает ваш текст вслух.",
+  nl:"Welkom bij Readium. Dit is de spraakserver die uw tekst hardop voorleest.",
+  pl:"Witamy w Readium. To serwer mowy, który czyta Twój tekst na głos.",
+  tr:"Readium'a hoş geldiniz. Bu, metninizi sesli okuyan konuşma sunucusudur.",
+  sv:"Välkommen till Readium. Det här är talservern som läser upp din text.",
+  uk:"Ласкаво просимо до Readium. Це мовний сервер, який читає ваш текст уголос.",
+  id:"Selamat datang di Readium. Ini adalah server ucapan yang membacakan teks Anda.",
+  el:"Καλώς ήρθατε στο Readium. Αυτός είναι ο διακομιστής φωνής που διαβάζει το κείμενό σας.",
+  cs:"Vítejte v Readium. Toto je hlasový server, který nahlas předčítá váš text.",
+  da:"Velkommen til Readium. Dette er taleserveren, der læser din tekst højt.",
+  fi:"Tervetuloa Readiumiin. Tämä on puhepalvelin, joka lukee tekstisi ääneen.",
+  ro:"Bun venit la Readium. Acesta este serverul vocal care îți citește textul cu voce tare.",
+  bg:"Добре дошли в Readium. Това е гласовият сървър, който чете вашия текст на глас.",
+  fil:"Maligayang pagdating sa Readium. Ito ang speech server na nagbabasa nang malakas ng iyong teksto.",
+  hr:"Dobrodošli u Readium. Ovo je govorni poslužitelj koji naglas čita vaš tekst.",
+  ms:"Selamat datang ke Readium. Ini ialah pelayan pertuturan yang membaca teks anda dengan kuat.",
+  sk:"Vitajte v Readiume. Toto je hlasový server, ktorý nahlas číta váš text.",
+  ta:"Readium க்கு வரவேற்கிறோம். இது உங்கள் உரையை உரக்கப் படிக்கும் பேச்சு சேவையகம்.",
 };
-const FORMAT_NOTE = { wav: "lossless", opus: "compressed, high quality", mp3: "lossy" };
+const FORMAT_NOTE = { wav:"lossless", opus:"compressed", mp3:"lossy" };
+const PROVIDER_NAMES = { pocket:"PocketTTS", elevenlabs:"ElevenLabs" };
 
-let voices = [];              // flattened installed voices from /service
-let langDisplay, regionDisplay;
-try { langDisplay = new Intl.DisplayNames(['en'], { type: 'language' }); } catch { langDisplay = null; }
-const nameOfLang = code => (langDisplay ? langDisplay.of(code) : code) || code;
+let voices = [];
+let langDisplay; try { langDisplay = new Intl.DisplayNames(['en'],{type:'language'}); } catch { langDisplay = null; }
+const nameOfLang = c => (langDisplay ? langDisplay.of(c) : c) || c;
+const prefix = t => (t||'').split('-')[0].toLowerCase();
+const voiceLangs = v => new Set([prefix(v.language), ...(v.otherLanguages||[]).map(prefix)]);
 
-const prefix = tag => (tag || '').split('-')[0].toLowerCase();
-const voiceLangs = v => new Set([prefix(v.language), ...(v.otherLanguages || []).map(prefix)]);
-
+/* ---------- request building ---------- */
 function requestBody() {
   const output = { format: formatEl.value };
   if (speedEl.value && !speedEl.disabled) output.speed = parseFloat(speedEl.value) || 1;
@@ -304,214 +294,278 @@ function requestBody() {
   if (boundaryEl.checked && !boundaryEl.disabled) body.boundary = true;
   return body;
 }
-
 function updateCurl() {
-  const body = JSON.stringify(requestBody());
   curlEl.textContent =
     `curl -s -X POST ${location.origin}/synthesize \\\n` +
     `  -H 'Content-Type: application/json' \\\n` +
-    `  -d '${body}' \\\n` +
+    `  -d '${JSON.stringify(requestBody())}' \\\n` +
     `  -o speech.${boundaryEl.checked ? 'json' : formatEl.value}`;
 }
 
-// Disable dev-tool fields the SELECTED voice doesn't support (from its /service controls).
+/* ---------- voice / language ---------- */
 function updateControlsForVoice() {
   const v = voices.find(x => x.identifier === voiceEl.value);
   const c = (v && v.controls) || {};
   const setEnabled = (input, ok, rowId) => {
     input.disabled = !ok;
-    if (rowId) el(rowId).classList.toggle('disabled', !ok);
+    if (rowId) el(rowId).classList.toggle('off', !ok);
     if (!ok && input.type === 'checkbox') input.checked = false;
   };
   setEnabled(speedEl, !!c.speed);
   setEnabled(pitchEl, !!c.pitch);
   setEnabled(ssmlEl, !!c.ssml, 'ssmlRow');
   setEnabled(boundaryEl, !!c.boundary, 'boundaryRow');
-  // bitrate only meaningful for compressed formats
   bitrateEl.disabled = formatEl.value === 'wav';
-  voiceHintEl.textContent = v ? `${v.quality || ''}`.trim() : '';
-}
 
-// Rebuild the voice <select>, grouped by region (optgroup), filtered to the selected language.
+  vmetaEl.innerHTML = '';
+  if (v) {
+    const native = prefix(v.language) === languageEl.value;
+    const chips = [];
+    if (v.provider) chips.push(['tag', PROVIDER_NAMES[v.provider] || v.provider]);
+    chips.push([native ? 'tag native' : 'tag cross', native ? 'native voice' : 'cross-language']);
+    for (const [cls, txt] of chips) {
+      const s = document.createElement('span'); s.className = cls; s.textContent = txt; vmetaEl.appendChild(s);
+    }
+  }
+}
 function renderVoices() {
   const lang = languageEl.value;
   const usable = voices.filter(v => voiceLangs(v).has(lang));
   voiceEl.innerHTML = '';
-  const byRegion = new Map();               // language tag -> [voices]
-  for (const v of usable) {
-    if (!byRegion.has(v.language)) byRegion.set(v.language, []);
-    byRegion.get(v.language).push(v);
-  }
+  const byRegion = new Map();
+  for (const v of usable) { if (!byRegion.has(v.language)) byRegion.set(v.language, []); byRegion.get(v.language).push(v); }
   for (const [tag, list] of byRegion) {
-    const group = document.createElement('optgroup');
-    group.label = nameOfLang(tag);          // e.g. "English (United States)"
-    for (const v of list) {                 // file order preserved = best→worst ranking
+    const group = document.createElement('optgroup'); group.label = nameOfLang(tag);
+    for (const v of list) {
       const opt = document.createElement('option');
-      opt.value = v.identifier;
-      const cross = prefix(v.language) !== lang ? ' · cross-language' : '';
-      opt.textContent = `${v.name} (${v.gender || '?'})${cross}`;
+      opt.value = v.identifier; opt.textContent = `${v.name} — ${v.gender || 'voice'}`;
       group.appendChild(opt);
     }
     voiceEl.appendChild(group);
   }
-  // Default to the best voice for this language — its NATIVE voice (primary ==
-  // selected language, the best-matched model), else the first cross-language voice.
   const best = usable.find(v => prefix(v.language) === lang) || usable[0];
   voiceEl.value = (best && best.identifier) || '';
-  updateControlsForVoice();
-  updateCurl();
+  updateControlsForVoice(); updateCurl();
 }
-
 function onLanguageChange() {
-  const sample = SAMPLES[languageEl.value];
-  if (sample) textEl.value = sample;        // swap the test utterance to the chosen language
+  const s = SAMPLES[languageEl.value]; if (s) textEl.value = s;
   renderVoices();
 }
 
 async function loadData() {
-  // /service = server capabilities (output formats, limits); /voices = the
-  // realtime list of installed voices (each with its merged controls).
-  const [svc, voiceList] = await Promise.all([
-    fetch('/service').then(r => r.json()),
-    fetch('/voices').then(r => r.json()),
-  ]);
+  let svc, voiceList;
+  try {
+    [svc, voiceList] = await Promise.all([
+      fetch('/service').then(r => r.json()),
+      fetch('/voices').then(r => r.json()),
+    ]);
+  } catch (e) { showError('Could not reach the server. Is it running?'); return; }
 
-  // formats from /service, default preselected
   formatEl.innerHTML = '';
   for (const f of svc.output.formats) {
-    const opt = document.createElement('option');
-    opt.value = f;
-    const note = FORMAT_NOTE[f] ? ` — ${FORMAT_NOTE[f]}` : '';
-    opt.textContent = `${f}${note}${f === svc.output.default ? ' (default)' : ''}`;
+    const opt = document.createElement('option'); opt.value = f;
+    opt.textContent = FORMAT_NOTE[f] ? `${f} · ${FORMAT_NOTE[f]}` : f;
     formatEl.appendChild(opt);
   }
   formatEl.value = svc.output.default;
 
-  // installed voices (realtime) from /voices
   voices = voiceList;
-
-  // languages actually served (primary + installed cross-language), as prefixes
+  if (!voices.length) { showError('No voices installed. Configure a provider and restart.'); }
   const langs = new Set();
   for (const v of voices) for (const l of voiceLangs(v)) langs.add(l);
   languageEl.innerHTML = '';
-  for (const code of [...langs].sort((a, b) => nameOfLang(a).localeCompare(nameOfLang(b)))) {
-    const opt = document.createElement('option');
-    opt.value = code;
-    opt.textContent = nameOfLang(code);
+  for (const code of [...langs].sort((a,b) => nameOfLang(a).localeCompare(nameOfLang(b)))) {
+    const opt = document.createElement('option'); opt.value = code; opt.textContent = nameOfLang(code);
     languageEl.appendChild(opt);
   }
   if (langs.has('en')) languageEl.value = 'en';
   onLanguageChange();
+
+  // Idle monitor: reveal with a dim baseline so the signature is present before you Speak.
+  playBtn.disabled = true;
+  monitor.classList.add('show');
+  requestAnimationFrame(() => { drawIdle(); timeEl.textContent = '0:00'; });
 }
 
-async function synthesize() {
-  statusPillEl.style.display = 'none';
-  metricsEl.style.display = 'none';
-  metricsEl.innerHTML = '';
-  outputEl.classList.remove('error');
-  outputEl.textContent = 'Synthesizing…';
-  loadingEl.classList.add('active');
-  playerEl.style.display = 'none';
+/* ---------- waveform monitor (the signature) ---------- */
+const actx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext||window.webkitAudioContext)() : null;
+let peaks = null, dpr = Math.min(window.devicePixelRatio || 1, 2), rafId = 0, clipDuration = 0;
+
+// player.duration is often Infinity/NaN for blob audio, which breaks progress. Prefer the
+// duration we got from decodeAudioData; fall back to a finite player.duration if available.
+function dur() {
+  if (clipDuration > 0 && isFinite(clipDuration)) return clipDuration;
+  return isFinite(player.duration) ? player.duration : 0;
+}
+function progressNow() { const d = dur(); return d ? Math.min(1, player.currentTime / d) : 0; }
+
+function sizeCanvas() {
+  const r = waveEl.getBoundingClientRect();
+  waveEl.width = Math.max(1, Math.round(r.width * dpr));
+  waveEl.height = Math.max(1, Math.round(r.height * dpr));
+}
+async function buildPeaks(blob) {
+  const N = 160;
+  try {
+    if (!actx) throw 0;
+    const buf = await actx.decodeAudioData(await blob.arrayBuffer());
+    clipDuration = buf.duration;
+    const data = buf.getChannelData(0), block = Math.floor(data.length / N) || 1;
+    const out = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      let peak = 0; const start = i*block;
+      for (let j = 0; j < block; j++) { const a = Math.abs(data[start+j] || 0); if (a > peak) peak = a; }
+      out[i] = peak;
+    }
+    const max = Math.max(...out) || 1;
+    for (let i = 0; i < N; i++) out[i] = out[i]/max;
+    return out;
+  } catch {
+    clipDuration = 0;  // decode failed — fall back to player.duration in dur()
+    const out = new Float32Array(N);
+    for (let i = 0; i < N; i++) out[i] = 0.25 + 0.6*Math.abs(Math.sin(i*0.35))*Math.abs(Math.cos(i*0.11));
+    return out;
+  }
+}
+// Bars are width-adaptive so they always fit (no negative bar width on narrow screens).
+function barLayout(w) {
+  const n = Math.max(24, Math.floor(w / (4*dpr)));
+  const gap = Math.max(1, Math.round(1*dpr));
+  const bw = Math.max(1, (w - gap*(n-1)) / n);
+  return { n, gap, bw, r: Math.max(0, Math.min(bw/2, 2*dpr)) };
+}
+function drawIdle() {
+  sizeCanvas();
+  const ctx = waveEl.getContext('2d'), w = waveEl.width, h = waveEl.height, mid = h/2;
+  ctx.clearRect(0,0,w,h);
+  const { n, gap, bw, r } = barLayout(w);
+  ctx.fillStyle = '#D7D7DE';
+  for (let i = 0; i < n; i++) {
+    const x = i*(bw+gap), bh = Math.max(2*dpr, (0.10 + 0.09*Math.abs(Math.sin(i*0.55)))*h);
+    roundRect(ctx, x, mid-bh/2, bw, bh, r); ctx.fill();
+  }
+}
+function drawWave(progress) {
+  if (!peaks) return;
+  const w = waveEl.width, h = waveEl.height, ctx = waveEl.getContext('2d');
+  ctx.clearRect(0,0,w,h);
+  const grad = ctx.createLinearGradient(0,0,w,0);
+  grad.addColorStop(0,'#007AFF'); grad.addColorStop(1,'#5E5CE6');
+  const { n, gap, bw, r } = barLayout(w), mid = h/2, playX = progress*w;
+  for (let i = 0; i < n; i++) {
+    const p = peaks[Math.min(peaks.length-1, Math.floor(i/n * peaks.length))];
+    const x = i*(bw+gap), bh = Math.max(2*dpr, p*h*0.92);
+    ctx.fillStyle = grad;
+    ctx.globalAlpha = (x + bw/2) <= playX ? 1 : 0.24;
+    roundRect(ctx, x, mid-bh/2, bw, bh, r); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (progress > 0 && progress < 1) {
+    ctx.fillStyle = '#1C1C1E';
+    ctx.fillRect(playX-1*dpr, 0, 2*dpr, h);
+  }
+}
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function fmtTime(s){ if(!isFinite(s))return '0:00'; const m=Math.floor(s/60), ss=Math.floor(s%60); return `${m}:${String(ss).padStart(2,'0')}`; }
+function tick() {
+  drawWave(progressNow());
+  timeEl.textContent = fmtTime(player.currentTime || 0);
+  if (!player.paused && !player.ended) rafId = requestAnimationFrame(tick);
+}
+
+/* ---------- synth flow ---------- */
+function showError(msg){ bannerEl.className = 'banner err'; bannerEl.textContent = msg; }
+function clearError(){ bannerEl.className = 'banner'; bannerEl.textContent = ''; }
+function setResponse(text, ok){ outputEl.innerHTML = ''; const s=document.createElement('span'); s.className='status'+(ok?'':' bad'); s.textContent=text; outputEl.appendChild(s); }
+
+let inFlight = false, currentUrl = null;
+async function speak() {
+  if (inFlight) return;
+  if (!textEl.value.trim()) { showError('Write some text first.'); textEl.focus(); return; }
+  if (!voiceEl.value) { showError('No voice selected.'); return; }
+  inFlight = true; clearError();
+  speakBtn.disabled = true; speakLabel.textContent = 'Synthesizing…';
   const t0 = performance.now();
   try {
-    const resp = await fetch('/synthesize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody()),
-    });
+    const resp = await fetch('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(requestBody()) });
     const serverMs = performance.now() - t0;
     if (!resp.ok) {
-      let detail;
-      try { detail = await resp.json(); } catch { detail = await resp.text(); }
-      setStatus(resp.status, resp.statusText, true);
-      outputEl.classList.add('error');
-      outputEl.textContent = typeof detail === 'string' ? detail : JSON.stringify(detail, null, 2);
-      return { blob: null, serverMs };
+      let d; try { d = await resp.json(); } catch { d = await resp.text(); }
+      const msg = (d && d.detail) ? d.detail : (typeof d === 'string' ? d : JSON.stringify(d));
+      showError(`${resp.status} — ${msg}`);
+      setResponse(`${resp.status} ${resp.statusText}\n`, false); outputEl.append(typeof d==='string'?d:JSON.stringify(d,null,2));
+      el('apiPanel').open = true;
+      return;
     }
-    let blob, info;
+    let blob;
     if (boundaryEl.checked && !boundaryEl.disabled) {
       const json = await resp.json();
-      info = JSON.stringify({ ...json, audio: `<base64, ${json.audio.length} chars>` }, null, 2);
-      const bytes = Uint8Array.from(atob(json.audio), c => c.charCodeAt(0));
-      blob = new Blob([bytes], { type: `audio/${json.format}` });
+      setResponse(`${resp.status} ${resp.statusText}\n`, true);
+      outputEl.append(JSON.stringify({ ...json, audio: `«base64 ${json.audio.length} chars»` }, null, 2));
+      blob = new Blob([Uint8Array.from(atob(json.audio), c => c.charCodeAt(0))], { type:`audio/${json.format}` });
     } else {
       blob = await resp.blob();
-      info = `Content-Type: ${resp.headers.get('content-type')}\nSize: ${blob.size} bytes`;
+      setResponse(`${resp.status} ${resp.statusText}\n`, true);
+      outputEl.append(`content-type: ${resp.headers.get('content-type')}\nsize: ${blob.size.toLocaleString()} bytes`);
     }
-    setStatus(resp.status, resp.statusText, false);
-    outputEl.textContent = info;
-    return { blob, serverMs };
+
+    if (currentUrl) URL.revokeObjectURL(currentUrl);
+    currentUrl = URL.createObjectURL(blob);
+    player.src = currentUrl;
+    downloadBtn.disabled = false;
+
+    peaks = await buildPeaks(blob);
+    playBtn.disabled = false;
+    monitor.classList.add('show'); sizeCanvas(); drawWave(0);
+    showMetrics(blob, serverMs);
+    player.play().catch(()=>{});
+  } catch (e) {
+    showError('Request failed — ' + e.message);
   } finally {
-    loadingEl.classList.remove('active');
+    inFlight = false; speakBtn.disabled = false; speakLabel.textContent = 'Speak';
   }
 }
 
-function setStatus(status, statusText, isError) {
-  statusPillEl.style.display = 'inline-block';
-  statusPillEl.textContent = `${status} ${statusText}`;
-  statusPillEl.classList.toggle('error', !!isError);
-}
-
-// Response-time + real-time factor. audioSec from the decoded clip's duration.
 async function showMetrics(blob, serverMs) {
-  const badges = [`<span class="metric">Response <strong>${Math.round(serverMs)} ms</strong></span>`];
-  const audioSec = await audioDuration(blob).catch(() => null);
-  if (audioSec) {
-    const pct = Math.round((audioSec / (serverMs / 1000)) * 100);
-    const rtf = (serverMs / 1000 / audioSec).toFixed(2);
-    badges.push(`<span class="metric">Audio <strong>${audioSec.toFixed(2)} s</strong></span>`);
-    badges.push(`<span class="metric rt">Realtime <strong>${pct}%</strong> (RTF ${rtf})</span>`);
+  const out = [`<span class="metric">response <b>${Math.round(serverMs)} ms</b></span>`,
+               `<span class="metric">size <b>${(blob.size/1024).toFixed(1)} KB</b></span>`];
+  const dur = await new Promise(res => { const a=new Audio(); a.preload='metadata'; a.onloadedmetadata=()=>res(a.duration); a.onerror=()=>res(null); a.src=URL.createObjectURL(blob); }).catch(()=>null);
+  if (dur && isFinite(dur)) {
+    out.push(`<span class="metric">audio <b>${dur.toFixed(2)} s</b></span>`);
+    out.push(`<span class="metric rt">realtime <b>${Math.round(dur/(serverMs/1000)*100)}%</b></span>`);
   }
-  metricsEl.innerHTML = badges.join('');
-  metricsEl.style.display = 'flex';
+  metricsEl.innerHTML = out.join('');
 }
 
-function audioDuration(blob) {
-  return new Promise((resolve, reject) => {
-    const a = document.createElement('audio');
-    a.preload = 'metadata';
-    a.onloadedmetadata = () => resolve(a.duration);
-    a.onerror = reject;
-    a.src = URL.createObjectURL(blob);
-  });
-}
+/* ---------- transport wiring ---------- */
+playBtn.addEventListener('click', () => { if (player.paused) player.play(); else player.pause(); });
+player.addEventListener('play', () => { playBtn.classList.add('playing'); onair?.classList.add('live'); cancelAnimationFrame(rafId); tick(); });
+player.addEventListener('pause', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(rafId); drawWave(progressNow()); });
+player.addEventListener('ended', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(rafId); drawWave(1); });
+player.addEventListener('timeupdate', () => { if (player.paused) timeEl.textContent = fmtTime(player.currentTime); });
+function seek(clientX) { const d = dur(); if (!d) return; const r = waveEl.getBoundingClientRect(); const ratio = Math.min(1, Math.max(0, (clientX-r.left)/r.width)); player.currentTime = ratio*d; drawWave(ratio); timeEl.textContent = fmtTime(player.currentTime); }
+waveEl.addEventListener('click', e => seek(e.clientX));
+window.addEventListener('resize', () => { if (peaks) { sizeCanvas(); drawWave(player.duration?player.currentTime/player.duration:0); } else { drawIdle(); } });
 
-// Throttle: ignore clicks while a request is in flight (disable both buttons).
-let inFlight = false;
-async function runSynth(open) {
-  if (inFlight) return;
-  inFlight = true;
-  synthBtn.disabled = openBtn.disabled = true;
-  try {
-    const { blob, serverMs } = await synthesize();
-    if (blob) {
-      const url = URL.createObjectURL(blob);
-      playerEl.src = url;
-      playerEl.style.display = 'block';
-      await showMetrics(blob, serverMs);
-      if (open) window.open(url, '_blank'); else playerEl.play().catch(() => {});
-    }
-  } finally {
-    inFlight = false;
-    synthBtn.disabled = openBtn.disabled = false;
-  }
-}
+downloadBtn.addEventListener('click', () => {
+  if (!currentUrl) return;
+  const a = document.createElement('a'); a.href = currentUrl;
+  a.download = `readium-speech.${boundaryEl.checked ? formatEl.value : formatEl.value}`; a.click();
+});
 
-synthBtn.addEventListener('click', () => runSynth(false));
-openBtn.addEventListener('click', () => runSynth(true));
+/* ---------- inputs ---------- */
+speakBtn.addEventListener('click', speak);
 languageEl.addEventListener('change', onLanguageChange);
-voiceEl.addEventListener('change', () => { updateControlsForVoice(); updateCurl(); });
+const onVoicePick = () => { updateControlsForVoice(); updateCurl(); };
+voiceEl.addEventListener('change', onVoicePick);
+voiceEl.addEventListener('input', onVoicePick);
 formatEl.addEventListener('change', () => { updateControlsForVoice(); updateCurl(); });
 for (const e of [textEl, speedEl, pitchEl, bitrateEl, sampleRateEl, ssmlEl, boundaryEl]) {
-  e.addEventListener('input', updateCurl);
-  e.addEventListener('change', updateCurl);
+  e.addEventListener('input', updateCurl); e.addEventListener('change', updateCurl);
 }
-
+textEl.addEventListener('keydown', e => { if ((e.metaKey||e.ctrlKey) && e.key === 'Enter') speak(); });
 el('copyCurl').addEventListener('click', async () => {
-  await navigator.clipboard.writeText(curlEl.textContent);
-  const btn = el('copyCurl'), original = btn.textContent;
-  btn.textContent = 'Copied';
-  setTimeout(() => { btn.textContent = original; }, 1200);
+  try { await navigator.clipboard.writeText(curlEl.textContent); const b=el('copyCurl'); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); } catch {}
 });
 
 loadData();

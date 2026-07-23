@@ -5,9 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # .env: server/auth/concurrency/circuit-breaker — universal, provider-agnostic.
-        # pocket-tts.env: PocketTTS-scoped install config. Optional — later providers get
-        # their own file the same way; a missing file is silently skipped, not an error.
-        env_file=(".env", "pocket-tts.env"),
+        # pocket-tts.env / elevenlabs.env: provider-scoped config. Optional — each
+        # provider gets its own file the same way; a missing file is silently skipped.
+        env_file=(".env", "pocket-tts.env", "elevenlabs.env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -49,6 +49,26 @@ class Settings(BaseSettings):
 
     # PocketTTS. Empty = no server-side default voice; a request must name one.
     pocket_default_voice: str = ""
+
+    # ElevenLabs (hosted HTTP provider). Only used when "elevenlabs" is in ENABLED_PROVIDERS.
+    elevenlabs_api_key: str = ""
+    elevenlabs_model_id: str = "eleven_multilingual_v2"
+    # Languages are PROVIDER-SCOPED: ElevenLabs has its own set in elevenlabs.env, independent of
+    # pocket's LANGUAGES. Empty = ElevenLabs serves no voices (like pocket's LANGUAGES unset).
+    elevenlabs_languages: str = ""
+
+    @property
+    def elevenlabs_language_list(self) -> list[str]:
+        return [v.strip().lower() for v in self.elevenlabs_languages.split(",") if v.strip()]
+
+    elevenlabs_base_url: str = "https://api.elevenlabs.io"  # overridable for tests
+    # Per-day usage cap so users can't spam the ElevenLabs API and burn credits. Counts CHARACTERS
+    # sent, resets at UTC midnight. 0 = unlimited. Operators set ELEVENLABS_DAILY_CHAR_LIMIT in
+    # elevenlabs.env — pick a value per the model's rate (https://elevenlabs.io/pricing/api;
+    # flash/turbo bill half, so allow ~2× the characters for the same cost). Backed by a small JSON
+    # file shared across workers (see app/core/daily_limit.py) so the cap is host-wide.
+    elevenlabs_daily_char_limit: int = Field(default=0, ge=0)
+    elevenlabs_usage_file: str = "/tmp/elevenlabs_usage.json"  # noqa: S108 — ephemeral counter; set a volume path to persist
 
     # Per-voice cross-language install config. Generic across providers. Format:
     # comma-separated "originalName:lang" pairs, "-" prefix to remove instead of add
@@ -112,6 +132,10 @@ class Settings(BaseSettings):
         providers = [p.strip() for p in self.enabled_providers.split(",")]
         if self.default_provider not in providers:
             raise ValueError(f"DEFAULT_PROVIDER '{self.default_provider}' not in ENABLED_PROVIDERS")
+        if "elevenlabs" in providers and not self.elevenlabs_api_key:
+            raise ValueError(
+                "ELEVENLABS_API_KEY must be set when 'elevenlabs' is in ENABLED_PROVIDERS"
+            )
         if self.app_env == "production" and not self.domain:
             raise ValueError("DOMAIN must be set when APP_ENV=production")
         return self

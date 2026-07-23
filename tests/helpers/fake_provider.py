@@ -1,3 +1,10 @@
+"""A deterministic in-memory TTSProvider for the test suite — no model, no network.
+
+Test-only: it is NOT registered by app/main.py. The contract suite and the route
+tests build a registry with it (see tests/conftest.py) so the fast suite runs without
+downloading a real model.
+"""
+
 import functools
 import math
 import struct

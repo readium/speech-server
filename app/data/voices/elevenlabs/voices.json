@@ -1,0 +1,47 @@
+[
+  {
+    "name": "George",
+    "originalName": "george",
+    "identifier": "urn:readium:tts:elevenlabs:george",
+    "language": "en-GB",
+    "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
+    "gender": "male",
+    "quality": "high"
+  },
+  {
+    "name": "Alice",
+    "originalName": "alice",
+    "identifier": "urn:readium:tts:elevenlabs:alice",
+    "language": "en-GB",
+    "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
+    "gender": "female",
+    "quality": "high"
+  },
+  {
+    "name": "Brian",
+    "originalName": "brian",
+    "identifier": "urn:readium:tts:elevenlabs:brian",
+    "language": "en-US",
+    "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
+    "gender": "male",
+    "quality": "high"
+  },
+  {
+    "name": "Sarah",
+    "originalName": "sarah",
+    "identifier": "urn:readium:tts:elevenlabs:sarah",
+    "language": "en-US",
+    "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
+    "gender": "female",
+    "quality": "high"
+  },
+  {
+    "name": "River",
+    "originalName": "river",
+    "identifier": "urn:readium:tts:elevenlabs:river",
+    "language": "en-US",
+    "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
+    "gender": "female",
+    "quality": "high"
+  }
+]

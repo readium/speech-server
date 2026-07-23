@@ -15,13 +15,14 @@ import pytest
 
 from app.core.concurrency import init_semaphore
 from app.providers.base import TTSProvider
-from app.providers.fake import FakeProvider
 from app.schemas.audio import SynthesisParams
-from tests.helpers.audio import assert_valid_pcm, pcm_duration_seconds
+from tests.helpers.audio import assert_valid_audio, audio_len
+from tests.helpers.fake_provider import FakeProvider
 
 PROVIDERS = [
     pytest.param("fake", id="fake"),
     pytest.param("pocket", id="pocket", marks=pytest.mark.integration),
+    pytest.param("elevenlabs", id="elevenlabs", marks=pytest.mark.integration),
 ]
 
 
@@ -37,6 +38,12 @@ async def provider(request: pytest.FixtureRequest) -> TTSProvider:
         p = PocketTTSProvider()
         await p.load()
         return p
+    if name == "elevenlabs":
+        from app.providers.elevenlabs import ElevenLabsProvider
+
+        el = ElevenLabsProvider()
+        await el.load()
+        return el
     raise ValueError(f"Unknown provider: {name}")
 
 
@@ -73,13 +80,13 @@ class TestProviderContract:
         v = (await provider.list_voices())[0]
         res = await provider.synthesize(_params(v.identifier))
         assert res.sample_rate > 0
-        assert_valid_pcm(res)
+        assert_valid_audio(res)
 
     async def test_longer_text_yields_longer_audio(self, provider: TTSProvider) -> None:
         v = (await provider.list_voices())[0]
         short = await provider.synthesize(_params(v.identifier, "Hi."))
         long_ = await provider.synthesize(_params(v.identifier, "Hi. " * 20))
-        assert pcm_duration_seconds(long_) > pcm_duration_seconds(short)
+        assert audio_len(long_) > audio_len(short)
 
     async def test_speed_affects_duration(self, provider: TTSProvider) -> None:
         if provider.id == "pocket":
@@ -87,7 +94,7 @@ class TestProviderContract:
         v = (await provider.list_voices())[0]
         slow = await provider.synthesize(_params(v.identifier, speed=0.8))
         fast = await provider.synthesize(_params(v.identifier, speed=1.5))
-        assert pcm_duration_seconds(fast) < pcm_duration_seconds(slow)
+        assert audio_len(fast) < audio_len(slow)
 
     async def test_synthesize_is_async_non_blocking(self, provider: TTSProvider) -> None:
         assert inspect.iscoroutinefunction(provider.synthesize)
