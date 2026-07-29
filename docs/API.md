@@ -233,7 +233,7 @@ Only `text` is required; everything else defaults as shown (`voice` falls back t
 |---|---|---|
 | `audio` | string | Base64, encoded in `output.format` |
 | `format` | string | Echoes the requested/default format |
-| `boundaries` | `TimingMark[] \| null` | `null` = this voice doesn't support timing (`Voice.controls.boundary == false`) — currently true for **every** voice, since PocketTTS never populates this |
+| `boundaries` | `TimingMark[] \| null` | `null` = this voice doesn't support timing (`Voice.controls.boundary == false`) — true for PocketTTS voices (no alignment data available); ElevenLabs voices populate real per-word marks |
 
 ### `TimingMark`
 
@@ -255,10 +255,9 @@ No `end` field (next mark's `elapsedTime`, or total duration for the last word, 
 Things the schema or config surfaces but the server doesn't actually do yet:
 
 - **Auth** — `API_KEY_ENABLED` is validated at startup but never enforced on requests.
-- **Word boundaries** — no provider populates `TimingMark`s. Every voice reports `controls.boundary: false`.
+- **Word boundaries on PocketTTS** — the underlying model exposes no timing/alignment data, so `controls.boundary` stays `false` for every PocketTTS voice. ElevenLabs populates real per-word marks.
 - **`output.speed` / `output.pitch` / `output.sample_rate`** — accepted, validated, silently ignored by PocketTTS.
 - **`id` / `publication_id`** — parsed, not used for caching, idempotency, or dedup.
 - **SSML** — tags are stripped, not interpreted. No prosody control.
 - **MathML** — passed through as plain text; equations get spoken as raw markup.
 - **Curated cross-language voice quality** — `otherLanguages` in `voices.json` documents what a voice is *capable* of, not whether it's a *good fit* (e.g. an English voice speaking French). No ranking/curation of this is implemented yet — deliberately conservative, pending a listening review.
-- **Providers beyond PocketTTS** — ElevenLabs is planned but not yet wired into `_build_registry()`.
