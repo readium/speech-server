@@ -128,8 +128,6 @@
   .reading { display: none; font-size: 1.25rem; line-height: 1.5; min-height: 3.2em; cursor: text; }
   .reading.show { display: block; }
   #text:has(+ .reading.show) { display: none; }
-  .reading .w { transition: background-color 0.15s ease; border-radius: 3px; }
-  .reading .w.active { background-color: #FFE066; }
   .checks { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; }
   .check { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text); cursor: pointer; }
   .check input { width: 17px; height: 17px; accent-color: var(--accent); }
@@ -237,15 +235,19 @@
   </details>
 </div>
 
-<audio id="player" style="display:none"></audio>
+<script type="module">
+import {
+  WebSpeechReadAloudNavigator,
+  setupDecorations,
+  DecorationStyleType,
+} from "https://esm.sh/@readium/speech@0.4.0";
 
-<script>
 const el = id => document.getElementById(id);
 const textEl=el('text'), voiceEl=el('voice'), formatEl=el('format'), languageEl=el('language'), vmetaEl=el('vmeta');
 const readingEl=el('reading');
 const speedEl=el('speed'), pitchEl=el('pitch'), bitrateEl=el('bitrate'), sampleRateEl=el('sampleRate');
 const ssmlEl=el('ssml'), boundaryEl=el('boundary');
-const outputEl=el('output'), curlEl=el('curl'), player=el('player'), bannerEl=el('banner');
+const outputEl=el('output'), curlEl=el('curl'), bannerEl=el('banner');
 const speakBtn=el('speakBtn'), speakLabel=el('speakLabel'), downloadBtn=el('downloadBtn');
 const monitor=el('monitor'), playBtn=el('playBtn'), waveEl=el('wave'), timeEl=el('time'), metricsEl=el('metrics'), onair=el('onair');
 
@@ -283,13 +285,185 @@ const SAMPLES = {
 const FORMAT_NOTE = { wav:"lossless", opus:"compressed", mp3:"lossy" };
 const PROVIDER_NAMES = { pocket:"PocketTTS", elevenlabs:"ElevenLabs" };
 
+/* readium/speech playback engine, backed by this server's REST API 
+   Implements ReadiumSpeechPlaybackEngine (see @readium/speech's engine.d.ts). Handed to
+   WebSpeechReadAloudNavigator, which despite its name accepts any conforming engine —
+   it only falls back to the browser's Web Speech API when none is given. */
+class RemoteEngine {
+  constructor() {
+    this._listeners = new Map();
+    this._voices = null;
+    this._currentVoice = null;
+    this._utterances = [];
+    this._index = 0;
+    this._rate = 1;
+    this._pitch = null;
+    this._volume = 1;
+    this._format = 'wav';
+    this._bitrate = null;
+    this._sampleRate = null;
+    this._boundary = false;
+    this._marks = [];
+    this._markIdx = -1;
+    this._rafId = 0;
+    this._blobUrl = null;
+    this.audioEl = new Audio();
+    this.audioEl.addEventListener('ended', () => { cancelAnimationFrame(this._rafId); this._emit({ type: 'end' }); });
+    this.audioEl.addEventListener('error', () => this._emit({ type: 'error', detail: this.audioEl.error }));
+  }
+
+  on(type, cb) {
+    if (!this._listeners.has(type)) this._listeners.set(type, []);
+    this._listeners.get(type).push(cb);
+    return () => { const a = this._listeners.get(type); const i = a.indexOf(cb); if (i > -1) a.splice(i, 1); };
+  }
+  _emit(event) { for (const cb of this._listeners.get(event.type) || []) cb(event); }
+
+  async getAvailableVoices() {
+    if (!this._voices) {
+      const raw = await fetch('/voices').then(r => r.json());
+      // Tag with the fields @readium/speech expects (source/label/voiceURI); everything
+      // else on our Voice schema already mirrors ReadiumSpeechVoice field-for-field.
+      this._voices = raw.map(v => ({ ...v, source: 'json', label: v.name, voiceURI: v.identifier }));
+    }
+    return this._voices;
+  }
+  setVoice(voice) {
+    this._currentVoice = typeof voice === 'string'
+      ? (this._voices || []).find(v => v.voiceURI === voice) || null
+      : voice;
+  }
+  getCurrentVoice() { return this._currentVoice; }
+  setSpeakInContentLanguage() {}
+  getSpeakInContentLanguage() { return false; }
+
+  // Non-interface extras: this server's request shape has no equivalent in the
+  // generic navigator (format/bitrate/sample-rate aren't a WebSpeech concept).
+  setOutputFormat(f) { this._format = f; }
+  setBitrate(kbps) { this._bitrate = kbps; }
+  setSampleRate(hz) { this._sampleRate = hz; }
+  setBoundary(enabled) { this._boundary = enabled; }
+  getBoundary() { return this._boundary; }
+
+  loadUtterances(contents) { this._utterances = contents; this._index = 0; this._emit({ type: 'ready' }); }
+  getUtteranceCount() { return this._utterances.length; }
+  getCurrentUtteranceIndex() { return this._index; }
+  setCurrentUtteranceIndex(index, onComplete) {
+    const ok = index >= 0 && index < this._utterances.length;
+    if (ok) this._index = index;
+    onComplete?.(ok);
+  }
+
+  setRate(rate) { this._rate = rate; }
+  getRate() { return this._rate; }
+  setPitch(pitch) { this._pitch = pitch; }
+  getPitch() { return this._pitch; }
+  setVolume(v) { this._volume = v; this.audioEl.volume = v; }
+  getVolume() { return this._volume; }
+  getState() { return this.audioEl.paused ? 'ready' : 'playing'; }
+
+  async speak(index = this._index) {
+    this._index = index;
+    const utt = this._utterances[index];
+    if (!utt || !this._currentVoice) { this._emit({ type: 'error', detail: 'missing utterance or voice' }); return; }
+
+    const output = { format: this._format };
+    if (this._rate !== 1) output.speed = this._rate;
+    if (this._pitch != null) output.pitch = this._pitch;
+    if (this._bitrate) output.bitrate = this._bitrate;
+    if (this._sampleRate) output.sample_rate = this._sampleRate;
+    const body = {
+      text: utt.ssml ?? utt.plain ?? '',
+      ssml: !!utt.ssml,
+      language: utt.language,
+      voice: this._currentVoice.voiceURI,
+      boundary: this._boundary,
+      output,
+    };
+
+    const t0 = performance.now();
+    let resp;
+    try {
+      resp = await fetch('/synthesize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (e) {
+      this._emit({ type: 'error', detail: String(e) });
+      return;
+    }
+    const serverMs = performance.now() - t0;
+
+    if (!resp.ok) {
+      let error; try { error = await resp.json(); } catch { error = await resp.text(); }
+      this._emit({ type: 'http', detail: { body, status: resp.status, ok: false, error, serverMs } });
+      this._emit({ type: 'error', detail: error });
+      return;
+    }
+
+    let blob, boundaries = [];
+    if (this._boundary) {
+      const json = await resp.json();
+      boundaries = json.boundaries || [];
+      blob = new Blob([Uint8Array.from(atob(json.audio), c => c.charCodeAt(0))], { type: `audio/${json.format}` });
+    } else {
+      blob = await resp.blob();
+    }
+    this._emit({ type: 'http', detail: { body, status: resp.status, ok: true, blob, serverMs, boundaries } });
+
+    if (this._blobUrl) URL.revokeObjectURL(this._blobUrl);
+    this._blobUrl = URL.createObjectURL(blob);
+    this._marks = boundaries;
+    this._markIdx = -1;
+    this.audioEl.src = this._blobUrl;
+    this.audioEl.volume = this._volume;
+    this.audioEl.play().catch(() => {});
+    this._emit({ type: 'start' });
+    cancelAnimationFrame(this._rafId);
+    this._tick();
+  }
+
+  _checkBoundary() {
+    if (!this._marks.length) return;
+    const t = this.audioEl.currentTime;
+    let idx = -1;
+    for (let i = 0; i < this._marks.length; i++) { if (this._marks[i].elapsedTime <= t) idx = i; else break; }
+    if (idx !== this._markIdx) {
+      this._markIdx = idx;
+      if (idx >= 0) {
+        const m = this._marks[idx];
+        this._emit({ type: 'boundary', detail: { name: m.name, charIndex: m.charIndex, charLength: m.charLength } });
+      }
+    }
+  }
+  syncBoundary() { this._checkBoundary(); }
+  _tick() {
+    this._checkBoundary();
+    if (!this.audioEl.paused && !this.audioEl.ended) this._rafId = requestAnimationFrame(() => this._tick());
+  }
+
+  pause() { this.audioEl.pause(); cancelAnimationFrame(this._rafId); this._emit({ type: 'pause' }); }
+  resume() { this.audioEl.play().catch(() => {}); this._emit({ type: 'resume' }); this._tick(); }
+  stop() {
+    this.audioEl.pause(); this.audioEl.currentTime = 0;
+    this._markIdx = -1; cancelAnimationFrame(this._rafId);
+    this._emit({ type: 'stop' });
+  }
+  async destroy() {
+    this.stop();
+    if (this._blobUrl) URL.revokeObjectURL(this._blobUrl);
+    this._listeners.clear();
+  }
+}
+
+const engine = new RemoteEngine();
+const speechNavigator = new WebSpeechReadAloudNavigator(engine);
+const decorations = setupDecorations();
+
 let voices = [];
 let langDisplay; try { langDisplay = new Intl.DisplayNames(['en'],{type:'language'}); } catch { langDisplay = null; }
 const nameOfLang = c => (langDisplay ? langDisplay.of(c) : c) || c;
 const prefix = t => (t||'').split('-')[0].toLowerCase();
 const voiceLangs = v => new Set([prefix(v.language), ...(v.otherLanguages||[]).map(prefix)]);
 
-/* ---------- request building ---------- */
+/* request building */
 function requestBody() {
   const output = { format: formatEl.value };
   if (speedEl.value && !speedEl.disabled) output.speed = parseFloat(speedEl.value) || 1;
@@ -309,7 +483,7 @@ function updateCurl() {
     `  -o speech.${boundaryEl.checked ? 'json' : formatEl.value}`;
 }
 
-/* ---------- voice / language ---------- */
+/* voice / language */
 function updateControlsForVoice() {
   const v = voices.find(x => x.identifier === voiceEl.value);
   const c = (v && v.controls) || {};
@@ -364,7 +538,7 @@ async function loadData() {
   try {
     [svc, voiceList] = await Promise.all([
       fetch('/service').then(r => r.json()),
-      fetch('/voices').then(r => r.json()),
+      speechNavigator.getVoices(),
     ]);
   } catch (e) { showError('Could not reach the server. Is it running?'); return; }
 
@@ -394,17 +568,17 @@ async function loadData() {
   requestAnimationFrame(() => { drawIdle(); timeEl.textContent = '0:00'; });
 }
 
-/* ---------- waveform monitor (the signature) ---------- */
+/* waveform monitor (the signature) */
 const actx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext||window.webkitAudioContext)() : null;
-let peaks = null, dpr = Math.min(window.devicePixelRatio || 1, 2), rafId = 0, clipDuration = 0;
+let peaks = null, dpr = Math.min(window.devicePixelRatio || 1, 2), clipDuration = 0;
 
-// player.duration is often Infinity/NaN for blob audio, which breaks progress. Prefer the
-// duration we got from decodeAudioData; fall back to a finite player.duration if available.
+// engine.audioEl.duration is often Infinity/NaN for blob audio, which breaks progress. Prefer
+// the duration we got from decodeAudioData; fall back to a finite element duration if available.
 function dur() {
   if (clipDuration > 0 && isFinite(clipDuration)) return clipDuration;
-  return isFinite(player.duration) ? player.duration : 0;
+  return isFinite(engine.audioEl.duration) ? engine.audioEl.duration : 0;
 }
-function progressNow() { const d = dur(); return d ? Math.min(1, player.currentTime / d) : 0; }
+function progressNow() { const d = dur(); return d ? Math.min(1, engine.audioEl.currentTime / d) : 0; }
 
 function sizeCanvas() {
   const r = waveEl.getBoundingClientRect();
@@ -428,7 +602,7 @@ async function buildPeaks(blob) {
     for (let i = 0; i < N; i++) out[i] = out[i]/max;
     return out;
   } catch {
-    clipDuration = 0;  // decode failed — fall back to player.duration in dur()
+    clipDuration = 0;  // decode failed — fall back to engine.audioEl.duration in dur()
     const out = new Float32Array(N);
     for (let i = 0; i < N; i++) out[i] = 0.25 + 0.6*Math.abs(Math.sin(i*0.35))*Math.abs(Math.cos(i*0.11));
     return out;
@@ -474,105 +648,105 @@ function drawWave(progress) {
 }
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function fmtTime(s){ if(!isFinite(s))return '0:00'; const m=Math.floor(s/60), ss=Math.floor(s%60); return `${m}:${String(ss).padStart(2,'0')}`; }
-function tick() {
+let waveRafId = 0;
+function waveTick() {
   drawWave(progressNow());
-  timeEl.textContent = fmtTime(player.currentTime || 0);
-  updateHighlight(player.currentTime || 0);
-  if (!player.paused && !player.ended) rafId = requestAnimationFrame(tick);
+  timeEl.textContent = fmtTime(engine.audioEl.currentTime || 0);
+  if (!engine.audioEl.paused && !engine.audioEl.ended) waveRafId = requestAnimationFrame(waveTick);
 }
 
-/* ---------- synth flow ---------- */
+/* synth flow */
 function showError(msg){ bannerEl.className = 'banner err'; bannerEl.textContent = msg; }
 function clearError(){ bannerEl.className = 'banner'; bannerEl.textContent = ''; }
 function setResponse(text, ok){ outputEl.innerHTML = ''; const s=document.createElement('span'); s.className='status'+(ok?'':' bad'); s.textContent=text; outputEl.appendChild(s); }
 
-/* ---------- boundary word highlighting ---------- */
-// marks come back sorted by elapsedTime (provider emits them in speech order) — trusted as-is.
-let activeMarks = [];
-function renderReading(marks, text) {
-  readingEl.innerHTML = '';
-  activeMarks = [];
-  if (!marks || !marks.length) { readingEl.classList.remove('show'); return; }
-  let cursor = 0;
-  for (const m of marks) {
-    const start = m.charIndex;
-    const end = start + m.charLength;
-    if (start > cursor) {
-      readingEl.appendChild(document.createTextNode(text.slice(cursor, start)));
-    }
-    const span = document.createElement('span');
-    span.className = 'w';
-    span.textContent = text.slice(start, end);
-    readingEl.appendChild(span);
-    activeMarks.push({ t: m.elapsedTime, span });
-    cursor = end;
-  }
-  if (cursor < text.length) {
-    readingEl.appendChild(document.createTextNode(text.slice(cursor)));
-  }
+/* boundary word highlighting, via @readium/speech's decorations */
+let readingText = '';
+speechNavigator.on('boundary', (event) => {
+  if (!event.detail || event.detail.name !== 'word') return;
+  const { charIndex, charLength } = event.detail;
+  const word = readingText.slice(charIndex, charIndex + charLength);
+  if (!word.trim()) return;
+  decorations.decorate([{
+    id: 'tts-word',
+    style: { type: DecorationStyleType.Highlight, tint: '#FFE066', enforceContrast: false },
+    highlight: word,
+    before: readingText.slice(0, charIndex),
+    after: readingText.slice(charIndex + charLength),
+  }], 'tts');
+});
+function clearReadingHighlight() {
+  decorations.applyDecorations([], 'tts');
+  readingEl.classList.remove('show');
+}
+speechNavigator.on('start', () => {
+  if (!engine.getBoundary()) return;
+  readingText = textEl.value;
+  readingEl.textContent = readingText;
   readingEl.classList.add('show');
-}
-function updateHighlight(t) {
-  if (!activeMarks.length) return;
-  let idx = -1;
-  for (let i = 0; i < activeMarks.length; i++) { if (activeMarks[i].t <= t) idx = i; else break; }
-  for (let i = 0; i < activeMarks.length; i++) activeMarks[i].span.classList.toggle('active', i === idx);
-}
+});
+speechNavigator.on('stop', clearReadingHighlight);
+speechNavigator.on('end', clearReadingHighlight);
+speechNavigator.on('error', (event) => {
+  const d = event.detail;
+  const msg = (d && d.detail) ? d.detail : (typeof d === 'string' ? d : (d?.message || JSON.stringify(d)));
+  showError(msg);
+});
 // Click the highlighted text to go back to editing it (reading div sits over #text via CSS :has()).
-readingEl.addEventListener('click', () => { renderReading(null, ''); textEl.focus(); });
+function backToEditing() { speechNavigator.stop(); textEl.focus(); }
+readingEl.addEventListener('click', backToEditing);
 readingEl.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); renderReading(null, ''); textEl.focus(); }
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); backToEditing(); }
 });
 
-let inFlight = false, currentUrl = null;
-async function speak() {
-  if (inFlight) return;
+function speak() {
   if (!textEl.value.trim()) { showError('Write some text first.'); textEl.focus(); return; }
   if (!voiceEl.value) { showError('No voice selected.'); return; }
-  inFlight = true; clearError();
-  renderReading(null, '');
+  clearError();
   speakBtn.disabled = true; speakLabel.textContent = 'Synthesizing…';
-  const t0 = performance.now();
-  try {
-    const resp = await fetch('/synthesize', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(requestBody()) });
-    const serverMs = performance.now() - t0;
-    if (!resp.ok) {
-      let d; try { d = await resp.json(); } catch { d = await resp.text(); }
-      const msg = (d && d.detail) ? d.detail : (typeof d === 'string' ? d : JSON.stringify(d));
-      showError(`${resp.status} — ${msg}`);
-      setResponse(`${resp.status} ${resp.statusText}\n`, false); outputEl.append(typeof d==='string'?d:JSON.stringify(d,null,2));
-      el('apiPanel').open = true;
-      return;
-    }
-    let blob;
-    if (boundaryEl.checked && !boundaryEl.disabled) {
-      const json = await resp.json();
-      setResponse(`${resp.status} ${resp.statusText}\n`, true);
-      outputEl.append(JSON.stringify({ ...json, audio: `«base64 ${json.audio.length} chars»` }, null, 2));
-      blob = new Blob([Uint8Array.from(atob(json.audio), c => c.charCodeAt(0))], { type:`audio/${json.format}` });
-      renderReading(json.boundaries, textEl.value);
-    } else {
-      blob = await resp.blob();
-      setResponse(`${resp.status} ${resp.statusText}\n`, true);
-      outputEl.append(`content-type: ${resp.headers.get('content-type')}\nsize: ${blob.size.toLocaleString()} bytes`);
-    }
 
-    if (currentUrl) URL.revokeObjectURL(currentUrl);
-    currentUrl = URL.createObjectURL(blob);
-    player.src = currentUrl;
-    downloadBtn.disabled = false;
+  speechNavigator.setVoice(voiceEl.value);
+  speechNavigator.setRate(speedEl.value && !speedEl.disabled ? (parseFloat(speedEl.value) || 1) : 1);
+  speechNavigator.setPitch(pitchEl.value && !pitchEl.disabled ? parseFloat(pitchEl.value) : null);
+  engine.setOutputFormat(formatEl.value);
+  engine.setBitrate(bitrateEl.value ? parseInt(bitrateEl.value, 10) : null);
+  engine.setSampleRate(sampleRateEl.value ? parseInt(sampleRateEl.value, 10) : null);
+  engine.setBoundary(boundaryEl.checked && !boundaryEl.disabled);
 
-    peaks = await buildPeaks(blob);
+  const ssmlOn = ssmlEl.checked && !ssmlEl.disabled;
+  const utterance = { language: languageEl.value };
+  if (ssmlOn) utterance.ssml = textEl.value; else utterance.plain = textEl.value;
+  speechNavigator.loadContent(utterance);
+  speechNavigator.play();
+}
+
+let currentBlob = null, currentFormat = null;
+engine.on('http', (event) => {
+  const { body, status, ok, blob, serverMs, boundaries, error } = event.detail;
+  speakBtn.disabled = false; speakLabel.textContent = 'Speak';
+
+  if (!ok) {
+    setResponse(`${status}\n`, false);
+    outputEl.append(typeof error === 'string' ? error : JSON.stringify(error, null, 2));
+    el('apiPanel').open = true;
+    return;
+  }
+  setResponse(`${status} OK\n`, true);
+  const preview = engine.getBoundary()
+    ? { ...body, boundaries: `«${(boundaries || []).length} marks»` }
+    : body;
+  outputEl.append(JSON.stringify(preview, null, 2));
+
+  currentBlob = blob; currentFormat = body.output.format;
+  downloadBtn.disabled = false;
+
+  buildPeaks(blob).then(p => {
+    peaks = p;
     playBtn.disabled = false;
     monitor.classList.add('show'); sizeCanvas(); drawWave(0);
-    showMetrics(blob, serverMs);
-    player.play().catch(()=>{});
-  } catch (e) {
-    showError('Request failed — ' + e.message);
-  } finally {
-    inFlight = false; speakBtn.disabled = false; speakLabel.textContent = 'Speak';
-  }
-}
+  });
+  showMetrics(blob, serverMs);
+});
 
 async function showMetrics(blob, serverMs) {
   const out = [`<span class="metric">response <b>${Math.round(serverMs)} ms</b></span>`,
@@ -585,23 +759,31 @@ async function showMetrics(blob, serverMs) {
   metricsEl.innerHTML = out.join('');
 }
 
-/* ---------- transport wiring ---------- */
-playBtn.addEventListener('click', () => { if (player.paused) player.play(); else player.pause(); });
-player.addEventListener('play', () => { playBtn.classList.add('playing'); onair?.classList.add('live'); cancelAnimationFrame(rafId); tick(); });
-player.addEventListener('pause', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(rafId); drawWave(progressNow()); });
-player.addEventListener('ended', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(rafId); drawWave(1); });
-player.addEventListener('timeupdate', () => { if (player.paused) timeEl.textContent = fmtTime(player.currentTime); });
-function seek(clientX) { const d = dur(); if (!d) return; const r = waveEl.getBoundingClientRect(); const ratio = Math.min(1, Math.max(0, (clientX-r.left)/r.width)); player.currentTime = ratio*d; drawWave(ratio); timeEl.textContent = fmtTime(player.currentTime); updateHighlight(player.currentTime); }
+/* transport wiring */
+playBtn.addEventListener('click', () => { if (speechNavigator.getState() === 'playing') speechNavigator.pause(); else speechNavigator.play(); });
+speechNavigator.on('start', () => { playBtn.classList.add('playing'); onair?.classList.add('live'); cancelAnimationFrame(waveRafId); waveTick(); });
+speechNavigator.on('resume', () => { playBtn.classList.add('playing'); onair?.classList.add('live'); cancelAnimationFrame(waveRafId); waveTick(); });
+speechNavigator.on('pause', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(waveRafId); drawWave(progressNow()); });
+speechNavigator.on('stop', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(waveRafId); drawWave(0); });
+speechNavigator.on('end', () => { playBtn.classList.remove('playing'); onair?.classList.remove('live'); cancelAnimationFrame(waveRafId); drawWave(1); });
+function seek(clientX) {
+  const d = dur(); if (!d) return;
+  const r = waveEl.getBoundingClientRect();
+  const ratio = Math.min(1, Math.max(0, (clientX-r.left)/r.width));
+  engine.audioEl.currentTime = ratio*d;
+  engine.syncBoundary();
+  drawWave(ratio); timeEl.textContent = fmtTime(engine.audioEl.currentTime);
+}
 waveEl.addEventListener('click', e => seek(e.clientX));
-window.addEventListener('resize', () => { if (peaks) { sizeCanvas(); drawWave(player.duration?player.currentTime/player.duration:0); } else { drawIdle(); } });
+window.addEventListener('resize', () => { if (peaks) { sizeCanvas(); drawWave(progressNow()); } else { drawIdle(); } });
 
 downloadBtn.addEventListener('click', () => {
-  if (!currentUrl) return;
-  const a = document.createElement('a'); a.href = currentUrl;
-  a.download = `readium-speech.${boundaryEl.checked ? formatEl.value : formatEl.value}`; a.click();
+  if (!currentBlob) return;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(currentBlob);
+  a.download = `readium-speech.${currentFormat}`; a.click();
 });
 
-/* ---------- inputs ---------- */
+/* inputs */
 speakBtn.addEventListener('click', speak);
 languageEl.addEventListener('change', onLanguageChange);
 const onVoicePick = () => { updateControlsForVoice(); updateCurl(); };
@@ -613,7 +795,7 @@ for (const e of [textEl, speedEl, pitchEl, bitrateEl, sampleRateEl, ssmlEl, boun
 }
 textEl.addEventListener('keydown', e => { if ((e.metaKey||e.ctrlKey) && e.key === 'Enter') speak(); });
 el('copyCurl').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(curlEl.textContent); const b=el('copyCurl'); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); } catch {}
+  try { await window.navigator.clipboard.writeText(curlEl.textContent); const b=el('copyCurl'); b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1200); } catch {}
 });
 
 loadData();
