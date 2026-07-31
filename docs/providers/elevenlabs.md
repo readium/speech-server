@@ -17,7 +17,7 @@ Source: [ElevenLabs Text-to-Speech](https://elevenlabs.io/docs/capabilities/text
 ---
 
 > [!NOTE]
-> Currently for the **Proof-of-Concept**, we have listed below are only intersection of voices, language's & Audio format as per all tier of models i.e free - pro tier. Remained supported to subscription tier wise voices, language's & Audio format will be added later. 
+> This is a proof of concept: the voices, languages, and audio formats listed below are the intersection supported across every tier (free through Pro). Tier-specific extras aren't modeled yet — they may be added later.
 
 ## Configuration
 

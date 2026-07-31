@@ -66,3 +66,7 @@ curl -s -X POST http://localhost:8000/synthesize \
 - [readium/speech](https://github.com/readium/speech) — TypeScript read-aloud library this server is designed to pair with
 - [HadrienGardeur/web-speech-recommended-voices](https://github.com/HadrienGardeur/web-speech-recommended-voices) — voice catalog schema reference (CC0)
 - [pocket-tts](https://github.com/pocket-tts/pocket-tts) — the underlying CPU TTS engine
+
+## License
+
+BSD 3-Clause — see [LICENSE](LICENSE).
