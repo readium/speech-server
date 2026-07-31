@@ -21,6 +21,17 @@ class Controls(BaseModel):
     def _serialize_enabled_only(self) -> dict[str, bool]:
         return {k: True for k, v in self.__dict__.items() if v}
 
+    def as_dict(self) -> dict[str, bool]:
+        """Full booleans, including disabled ones — unlike the enabled-only JSON
+        serialization above. Used by GET /service to show what a provider CAN do,
+        not just what a given voice has turned on."""
+        return {
+            "pitch": self.pitch,
+            "speed": self.speed,
+            "ssml": self.ssml,
+            "boundary": self.boundary,
+        }
+
 
 class Voice(BaseModel):
     # --- Readium ReadiumSpeechVoice-aligned fields ---

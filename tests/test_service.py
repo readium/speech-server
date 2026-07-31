@@ -19,9 +19,11 @@ async def test_service_provider_capabilities_shape(client: AsyncClient) -> None:
     resp = await client.get("/service")
     provider = next(p for p in resp.json()["providers"] if p["id"] == "fake")
     assert "installedLanguages" in provider
-    # model-level quality/controls aren't repeated here — they're on /voices per voice
-    assert "controls" not in provider
-    assert "quality" not in provider
+    # provider-level defaults, mirrored from /voices — but controls shows every key,
+    # including disabled ones, since this is "what's possible" not "what's on"
+    assert set(provider["controls"]) == {"pitch", "speed", "ssml", "boundary"}
+    assert all(isinstance(v, bool) for v in provider["controls"].values())
+    assert "quality" in provider
 
 
 @pytest.mark.route

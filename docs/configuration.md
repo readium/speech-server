@@ -143,14 +143,16 @@ Spanish"). Rules, applied on top of the `*:*` base:
    language model by itself; the language must already be enabled.
 3. If the same pair appears both with and without `-`, **remove wins** — it's always the final
    word for the exact pair it names.
-4. A voice installs for whichever enabled languages apply — its primary if that's in
-   `LANGUAGES`, plus any added/`*:*` cross-languages. A voice can even run in a **non-primary**
-   language *without* its primary base model (e.g. `VOICE_LANGUAGES=estelle:en` with
-   `LANGUAGES=en` installs estelle in English only, no French model): pocket_tts loads a voice's
-   embedding from the target language's model, not the primary's. When a request omits `language`,
-   the voice's default is its primary if installed, else its first installed language. `/voices`
-   still reports the voice's true primary `language` (from `voices.json`); `/service` reports which
-   languages are actually installed.
+4. A voice installs for whichever enabled languages apply: its primary (if that's in `LANGUAGES`)
+   plus any added/`*:*` cross-languages.
+   - It can even run in a **non-primary** language *without* its primary base model — e.g.
+     `VOICE_LANGUAGES=estelle:en` with `LANGUAGES=en` installs estelle in English only, no French
+     model. pocket_tts loads a voice's embedding from the target language's model, not the
+     primary's.
+   - When a request omits `language`, the voice defaults to its primary if installed, else its
+     first installed language.
+   - `/voices` still reports the voice's true primary `language` (from `voices.json`); `/service`
+     reports which languages are actually installed.
 
 ## Model sizes & RAM
 

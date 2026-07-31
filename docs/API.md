@@ -52,7 +52,7 @@ Pydantic schema errors (`422`) additionally carry an `errors` array (raw Pydanti
 | 413 | `payload_too_large` | `text` exceeds `MAX_TEXT_LENGTH` |
 | 422 | `validation_failed` | Request body fails schema validation (wrong type, missing required field, invalid enum value) |
 | 502 | `provider_error` | Provider or ffmpeg failed (bad voice state, generation error, encode failure) |
-| 503 | `service_not_ready` | **During startup** the server accepts connections immediately and loads models in the background — `/synthesize` and `/voices` return 503 until warmup finishes (`/healthz` and `/service` stay up throughout; `/readyz` flips to 200 when ready). Also 503 from `/readyz` if ffmpeg is missing or a provider is unhealthy, and from `/synthesize` when a provider's circuit breaker is open — see [configuration](configuration.md) for `CIRCUIT_BREAKER_*` |
+| 503 | `service_not_ready` | Three causes: (1) **startup** — the server accepts connections immediately and loads models in the background, so `/synthesize` and `/voices` return 503 until warmup finishes (`/healthz` and `/service` stay up throughout; `/readyz` flips to 200 when ready); (2) `/readyz` — also 503 if ffmpeg is missing or a provider is unhealthy; (3) `/synthesize` — also 503 when a provider's circuit breaker is open, see [configuration](configuration.md) for `CIRCUIT_BREAKER_*` |
 
 `unsupported_format` (415), `rate_limited` (429), and `provider_timeout` (504) are declared in `app/api/errors.py` for future providers but no current code path raises them — a `429`/`503` seen in production is nginx's own rate/connection limit, a plain nginx error page, not this JSON shape.
 
@@ -74,9 +74,9 @@ GET /service
 ```
 
 Server-wide, per-provider **capabilities** — kept separate from `/voices` so this isn't repeated on
-every voice: supported output formats + default, request limits, and per provider the model-level
-`quality`/`controls` and the installed-language summary. The voices themselves are on
-[`GET /voices`](#get-voices). Per-provider details (output specs, voice notes) live in each
+every voice: supported output formats + default, request limits, and per provider the
+installed-language summary plus the provider's default `quality`/`controls`. The voices themselves
+are on [`GET /voices`](#get-voices). Per-provider details (output specs, voice notes) live in each
 provider's README under `docs/providers/`.
 
 ```json
@@ -86,16 +86,24 @@ provider's README under `docs/providers/`.
   "providers": [
     {
       "id": "pocket",
-      "installedLanguages": ["en"]
+      "installedLanguages": ["en"],
+      "quality": "veryHigh",
+      "controls": {"pitch": false, "speed": false, "ssml": false, "boundary": false}
     }
   ]
 }
 ```
 
 `providers[].installedLanguages` reflects `LANGUAGES` + `VOICE_LANGUAGES` as actually configured.
-Model-level `quality`/`controls` aren't repeated here — they're merged into each voice on
-[`GET /voices`](#get-voices) and documented per provider under `docs/providers/`. See
-[configuration](configuration.md).
+
+`providers[].quality` / `providers[].controls` are the provider's **defaults** — the same values
+merged into every voice on [`GET /voices`](#get-voices) unless a voice overrides them. Unlike
+`Voice.controls` (which only lists **enabled** controls, so an unsupported one is simply absent),
+`providers[].controls` always lists all four keys — `pitch`, `speed`, `ssml`, `boundary` — with
+`false` where the provider doesn't support it. That's the point of putting it on `/service`: a
+client can see what a provider **can** do at all, including the `false`s, without inspecting a
+voice. A voice-level override (rare — see per-provider docs) can still diverge from this default.
+See [configuration](configuration.md).
 
 ---
 
