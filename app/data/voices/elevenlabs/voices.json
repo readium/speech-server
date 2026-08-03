@@ -6,7 +6,7 @@
     "language": "en-GB",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "male",
-    "quality": "high"
+    "quality": "veryhigh"
   },
   {
     "name": "Alice",
@@ -15,7 +15,7 @@
     "language": "en-GB",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "female",
-    "quality": "high"
+    "quality": "veryhigh"
   },
   {
     "name": "Brian",
@@ -24,7 +24,7 @@
     "language": "en-US",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "male",
-    "quality": "high"
+    "quality": "veryhigh"
   },
   {
     "name": "Sarah",
@@ -33,7 +33,7 @@
     "language": "en-US",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "female",
-    "quality": "high"
+    "quality": "veryhigh"
   },
   {
     "name": "River",
@@ -41,7 +41,7 @@
     "identifier": "urn:readium:tts:elevenlabs:river",
     "language": "en-US",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
-    "gender": "female",
-    "quality": "high"
+    "gender": "neutral",
+    "quality": "veryhigh"
   }
 ]
