@@ -6,7 +6,7 @@
     "language": "en-GB",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "male",
-    "quality": "veryhigh"
+    "quality": "veryHigh"
   },
   {
     "name": "Alice",
@@ -15,7 +15,7 @@
     "language": "en-GB",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "female",
-    "quality": "veryhigh"
+    "quality": "veryHigh"
   },
   {
     "name": "Brian",
@@ -24,7 +24,7 @@
     "language": "en-US",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "male",
-    "quality": "veryhigh"
+    "quality": "veryHigh"
   },
   {
     "name": "Sarah",
@@ -33,7 +33,7 @@
     "language": "en-US",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "female",
-    "quality": "veryhigh"
+    "quality": "veryHigh"
   },
   {
     "name": "River",
@@ -42,6 +42,6 @@
     "language": "en-US",
     "otherLanguages": ["ar", "bg", "cs", "da", "de", "el", "es", "fi", "fil", "fr", "hi", "hr", "id", "it", "ja", "ko", "ms", "nl", "pl", "pt", "ro", "ru", "sk", "sv", "ta", "tr", "uk", "zh"],
     "gender": "neutral",
-    "quality": "veryhigh"
+    "quality": "veryHigh"
   }
 ]
