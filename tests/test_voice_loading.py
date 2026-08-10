@@ -1,12 +1,10 @@
 from app.domain.enums import Gender, Quality
 from app.providers.voice_loading import (
-    ControlsOverride,
     VoiceEntry,
     build_voice,
     plan_install,
     resolve_install_languages,
 )
-from app.schemas.voice import Controls
 
 
 def _entry(**overrides: object) -> VoiceEntry:
@@ -128,43 +126,24 @@ def test_plan_install_primary_preferred_as_default_when_installed() -> None:
     assert plan == ("en", frozenset({"en", "fr"}))  # primary stays the default
 
 
-def test_controls_serialize_only_enabled() -> None:
-    """A false control is absent from the payload; only enabled ones appear."""
-    assert Controls().model_dump() == {}
-    assert Controls(ssml=True).model_dump() == {"ssml": True}
-    assert Controls(ssml=True, boundary=True).model_dump() == {"ssml": True, "boundary": True}
-    # internal attribute access is unaffected (all fields still exist)
-    assert Controls().boundary is False
-
-
 def test_build_voice_uses_provider_defaults() -> None:
     entry = _entry(gender=Gender.MALE)
-    voice = build_voice(entry, "pocket", frozenset({"fr"}), Quality.VERY_HIGH, Controls())
+    voice = build_voice(entry, "pocket", frozenset({"fr"}), Quality.VERY_HIGH)
     assert voice.quality == Quality.VERY_HIGH
     assert voice.otherLanguages == ["fr"]
-    assert voice.controls == Controls()
     assert voice.provider == "pocket"
     assert voice.gender == Gender.MALE
 
 
 def test_build_voice_quality_override_wins_over_default() -> None:
     entry = _entry(quality=Quality.LOW)
-    voice = build_voice(entry, "pocket", frozenset(), Quality.VERY_HIGH, Controls())
+    voice = build_voice(entry, "pocket", frozenset(), Quality.VERY_HIGH)
     assert voice.quality == Quality.LOW
-
-
-def test_build_voice_partial_controls_override() -> None:
-    entry = _entry(controls=ControlsOverride(ssml=True))
-    defaults = Controls(pitch=False, speed=False, ssml=False, boundary=False)
-    voice = build_voice(entry, "pocket", frozenset(), None, defaults)
-    assert voice.controls.ssml is True
-    assert voice.controls.pitch is False  # untouched fields fall back to the default
-    assert voice.controls.boundary is False
 
 
 def test_build_voice_other_languages_reflect_installed_not_aspirational() -> None:
     """voices.json declares 2 other languages, but only 1 was actually resolved
     for install — the served Voice must reflect what's installed."""
     entry = _entry(otherLanguages=["fr", "es"])
-    voice = build_voice(entry, "pocket", frozenset({"fr"}), None, Controls())
+    voice = build_voice(entry, "pocket", frozenset({"fr"}), None)
     assert voice.otherLanguages == ["fr"]

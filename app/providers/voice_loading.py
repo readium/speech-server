@@ -1,17 +1,7 @@
 from pydantic import BaseModel
 
 from app.domain.enums import Gender, Quality
-from app.schemas.voice import Controls, Voice
-
-
-class ControlsOverride(BaseModel):
-    """Partial per-voice override of a provider's default Controls. Unset (None)
-    fields fall back to the provider default — see merge_controls()."""
-
-    pitch: bool | None = None
-    speed: bool | None = None
-    ssml: bool | None = None
-    boundary: bool | None = None
+from app.schemas.voice import Voice
 
 
 class VoiceEntry(BaseModel):
@@ -25,7 +15,6 @@ class VoiceEntry(BaseModel):
     otherLanguages: list[str] = []
     gender: Gender | None = None
     quality: Quality | None = None
-    controls: ControlsOverride | None = None
 
 
 def _lang_prefix(lang: str) -> str:
@@ -84,23 +73,11 @@ def plan_install(
     return default_lang, installed
 
 
-def merge_controls(default: Controls, override: ControlsOverride | None) -> Controls:
-    if override is None:
-        return default
-    return Controls(
-        pitch=override.pitch if override.pitch is not None else default.pitch,
-        speed=override.speed if override.speed is not None else default.speed,
-        ssml=override.ssml if override.ssml is not None else default.ssml,
-        boundary=override.boundary if override.boundary is not None else default.boundary,
-    )
-
-
 def build_voice(
     entry: VoiceEntry,
     provider_id: str,
     installed_other: frozenset[str],
     default_quality: Quality | None,
-    default_controls: Controls,
 ) -> Voice:
     """The merge point where 'possible' (voices.json) becomes 'installed'
     (served via /voices): otherLanguages is installed_other, not entry.otherLanguages."""
@@ -113,5 +90,4 @@ def build_voice(
         otherLanguages=sorted(installed_other),
         gender=entry.gender,
         quality=entry.quality or default_quality,
-        controls=merge_controls(default_controls, entry.controls),
     )

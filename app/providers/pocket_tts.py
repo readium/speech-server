@@ -124,9 +124,7 @@ class PocketTTSProvider(TTSProvider):
                 continue
             default_lang, installed = plan
             other_langs = installed - frozenset({primary})
-            voice = build_voice(
-                entry, self.id, other_langs, self.default_quality, self.default_controls
-            )
+            voice = build_voice(entry, self.id, other_langs, self.default_quality)
             self._voices.append(voice)
             self._voice_default_lang[voice.identifier] = default_lang
             self._voice_langs[voice.identifier] = installed

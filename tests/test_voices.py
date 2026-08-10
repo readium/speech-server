@@ -23,7 +23,7 @@ async def test_list_voices_shape(client: AsyncClient) -> None:
         "provider",
         "identifier",
         "language",
-        "controls",
+        "quality",
     )
     for field in required:
         assert field in voice, f"Missing field: {field}"

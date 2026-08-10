@@ -1,25 +1,16 @@
-from pydantic import BaseModel, model_serializer
+from pydantic import BaseModel
 
 from app.domain.enums import Gender, Quality
 
 
 class Controls(BaseModel):
-    """Which prosody/format controls a voice accepts. Provider-level defaults,
-    overridable per voice (see app/providers/voice_loading.py).
-
-    Serializes only the controls that are ENABLED — a control the voice doesn't
-    support is simply absent, not `false`. Keeps `/voices` and `/service` lean and
-    works the same for any provider (pocket → `{}`, an SSML voice → `{"ssml": true}`).
-    Internal Python access (e.g. `voice.controls.boundary`) still sees all fields."""
+    """Which prosody/format controls a provider supports. Server-wide per provider —
+    see GET /service — not per voice."""
 
     pitch: bool = False
     speed: bool = False
     ssml: bool = False
     boundary: bool = False  # true when the provider returns word-level timing marks
-
-    @model_serializer
-    def _serialize_enabled_only(self) -> dict[str, bool]:
-        return {k: True for k, v in self.__dict__.items() if v}
 
     def as_dict(self) -> dict[str, bool]:
         """Full booleans, including disabled ones — unlike the enabled-only JSON
@@ -46,7 +37,6 @@ class Voice(BaseModel):
 
     # --- server extensions (not in ReadiumSpeechVoice) ---
     provider: str
-    controls: Controls = Controls()
 
 
 def voice_language_prefixes(voice: Voice) -> frozenset[str]:

@@ -1,8 +1,9 @@
 # Provider: PocketTTS
 
 Model-level information for the `pocket` provider — the things that are true for the whole model,
-so they're documented here once instead of repeated on every voice in `/voices`. The API still
-merges the model-level defaults below into each voice (a voice may override them).
+so they're documented here once instead of repeated on every voice in `/voices`. `quality` is
+merged into each voice on `/voices` (a voice may override it in `voices.json`); `controls` is
+service-wide only, on `GET /service`, not repeated per voice.
 
 Source: [kyutai/pocket-tts](https://github.com/kyutai-labs/pocket-tts) — a CPU TTS (flow-based LM +
 Mimi neural codec).
@@ -14,18 +15,15 @@ Mimi neural codec).
   Requests combine the `identifier` with a `language` — voices are declared **once**, not per
   language. The server picks the right language model behind the scenes.
 
-## Model-level defaults (merged into every voice)
+## Model-level defaults
 
 | Property | Value | Notes |
 |---|---|---|
-| `quality` | `veryHigh` | Quality of the **voice**, not the audio output. All pocket voices are `veryHigh`. |
-| `controls.pitch` | `false` | Not supported. |
-| `controls.speed` | `false` | Not supported (no native speed control). |
-| `controls.ssml` | `false` | SSML not supported; tags are stripped, not rendered. |
-| `controls.boundary` | `false` | No word-level timing marks. |
-
-A future voice that overrides one of these (e.g. `controls.ssml: true`) would carry that field in
-`voices.json`; otherwise the value above applies.
+| `quality` | `veryHigh` | Quality of the **voice**, not the audio output. All pocket voices are `veryHigh`. Merged into every voice on `/voices`; a voice may override it in `voices.json`. |
+| `controls.pitch` | `false` | Not supported. Service-wide only — see `GET /service`. |
+| `controls.speed` | `false` | Not supported (no native speed control). Service-wide only. |
+| `controls.ssml` | `false` | SSML not supported; tags are stripped, not rendered. Service-wide only. |
+| `controls.boundary` | `false` | No word-level timing marks. Service-wide only. |
 
 ## Audio output
 

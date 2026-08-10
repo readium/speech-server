@@ -10,14 +10,16 @@ router = APIRouter(tags=["voices"])
 @router.get(
     "/voices",
     response_model=list[Voice],
-    response_model_exclude_none=True,
+    response_model_exclude_defaults=True,
     dependencies=[Depends(require_ready)],
     summary="List available TTS voices",
     description=(
         "The voices **actually installed** on this deployment (realtime) — each voice's "
         "`language` and `otherLanguages` reflect what's loaded now, bounded by `LANGUAGES` + "
-        "`VOICE_LANGUAGES`. Model-level `quality`/`controls` are merged in per voice; `controls` "
-        "lists only the enabled ones. Optionally filtered by language or provider; supports "
+        "`VOICE_LANGUAGES`. Fields left at their default (e.g. no `gender`, no cross-language "
+        "`otherLanguages`) are omitted from the response. `quality` is the provider's default "
+        "merged into each voice; `controls` is provider-wide only and lives on `GET /service`, "
+        "not here. Optionally filtered by language or provider; supports "
         "pagination via `offset` and `limit`. Response headers `X-Total-Count`, `X-Offset`, "
         "`X-Limit` reflect the full result set size."
     ),
@@ -40,15 +42,8 @@ router = APIRouter(tags=["voices"])
                                         "provider": "pocket",
                                         "identifier": "urn:readium:tts:pocket:alba",
                                         "language": "en-US",
-                                        "otherLanguages": [],
                                         "gender": "male",
                                         "quality": "veryHigh",
-                                        "controls": {
-                                            "pitch": False,
-                                            "speed": False,
-                                            "ssml": False,
-                                            "boundary": False,
-                                        },
                                     }
                                 ],
                             }

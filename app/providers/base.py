@@ -16,8 +16,9 @@ class TTSProvider(ABC):
     # Empty (default) = language-agnostic; list_voices() returns all voices unfiltered.
     supported_languages: ClassVar[frozenset[str]] = frozenset()
 
-    # Model-level defaults merged into every voice this provider serves, unless a
-    # voice overrides them (see app/providers/voice_loading.py).
+    # Model-level defaults. default_quality is merged into every voice this
+    # provider serves (see app/providers/voice_loading.py) and also surfaced
+    # server-wide via GET /service; default_controls is service-wide only.
     default_quality: ClassVar[Quality | None] = None
     default_controls: ClassVar[Controls] = Controls()
 

@@ -152,7 +152,7 @@ def _alignment_to_marks(
 
 class ElevenLabsProvider(TTSProvider):
     id = "elevenlabs"
-    default_quality: ClassVar[Quality] = Quality.HIGH
+    default_quality: ClassVar[Quality] = Quality.VERY_HIGH
     # v2 has no pitch and only partial SSML; speed maps to voice_settings.speed,
     # boundary comes from the /with-timestamps alignment.
     default_controls: ClassVar[Controls] = Controls(
@@ -214,9 +214,7 @@ class ElevenLabsProvider(TTSProvider):
                 continue
             default_lang, installed = plan
             other_langs = installed - frozenset({primary})
-            voice = build_voice(
-                entry, self.id, other_langs, self.default_quality, self.default_controls
-            )
+            voice = build_voice(entry, self.id, other_langs, self.default_quality)
             self._voices.append(voice)
             self._voice_default_lang[voice.identifier] = default_lang
             self._voice_langs[voice.identifier] = installed

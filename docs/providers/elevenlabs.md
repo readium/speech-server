@@ -98,5 +98,6 @@ format (via the `/with-timestamps` endpoint).
   `/synthesize` returns `429 rate_limited` until 00:00 UTC. The counter is a small JSON file
   (`ELEVENLABS_USAGE_FILE`, default `/tmp/…`) shared across workers — point it at a volume to persist
   across restarts. Set it in the wizard (**Manage provider → elevenlabs → Set daily limit**).
-- `controls`: `speed` (maps to `voice_settings.speed`) and `boundary` supported; `pitch` and `ssml`
-  are not (SSML tags are stripped).
+- `controls` (service-wide, see `GET /service` — not repeated per voice): `speed` (maps to
+  `voice_settings.speed`) and `boundary` supported; `pitch` and `ssml` are not (SSML tags are
+  stripped).

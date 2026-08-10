@@ -96,14 +96,12 @@ provider's README under `docs/providers/`.
 
 `providers[].installedLanguages` reflects `LANGUAGES` + `VOICE_LANGUAGES` as actually configured.
 
-`providers[].quality` / `providers[].controls` are the provider's **defaults** — the same values
-merged into every voice on [`GET /voices`](#get-voices) unless a voice overrides them. Unlike
-`Voice.controls` (which only lists **enabled** controls, so an unsupported one is simply absent),
-`providers[].controls` always lists all four keys — `pitch`, `speed`, `ssml`, `boundary` — with
-`false` where the provider doesn't support it. That's the point of putting it on `/service`: a
-client can see what a provider **can** do at all, including the `false`s, without inspecting a
-voice. A voice-level override (rare — see per-provider docs) can still diverge from this default.
-See [configuration](configuration.md).
+`providers[].quality` is the provider's **default** — the same value merged into every voice on
+[`GET /voices`](#get-voices) unless a voice overrides it (rare — see per-provider docs).
+`providers[].controls` is **service-only** — it's not repeated per voice at all, only here.
+It always lists all four keys — `pitch`, `speed`, `ssml`, `boundary` — with `false` where the
+provider doesn't support it, so a client can see what a provider **can** do at all without
+inspecting a voice. See [configuration](configuration.md).
 
 ---
 
@@ -124,8 +122,11 @@ GET /voices?offset=0&limit=20
 | `limit` | int ≥ 1 | none | Max voices to return |
 
 The voices **actually installed** on this deployment (realtime): each voice's `language` (primary)
-and `otherLanguages` reflect what's loaded now, bounded by `LANGUAGES` + `VOICE_LANGUAGES`. Model-level
-`quality`/`controls` are merged in per voice. A voice not in this list can't be synthesized here.
+and `otherLanguages` reflect what's loaded now, bounded by `LANGUAGES` + `VOICE_LANGUAGES`. The
+provider's default `quality` is merged in per voice; `controls` is service-only — see
+[`GET /service`](#get-service). Fields left at their default (e.g. no `gender`, no cross-language
+`otherLanguages`) are omitted from the response entirely. A voice not in this list can't be
+synthesized here.
 
 Response: `200`, `Voice[]`.
 
@@ -133,11 +134,16 @@ Headers: `X-Total-Count` (matches before pagination), `X-Offset`, `X-Limit` (omi
 
 ### `Voice`
 
-Model-level info (quality default, control support) is declared once per provider and **merged**
-into every voice it serves; a voice only carries a field in `voices.json` when it's voice-specific
-or needs to override that default. `otherLanguages` reflects languages **actually installed** for
-that voice on this deployment, not every language the voice could theoretically support — see
-[configuration](configuration.md).
+The provider's default `quality` is declared once per provider and **merged** into every voice it
+serves; a voice only carries its own `quality` in `voices.json` when it needs to override that
+default. `controls` is **not** on `Voice` at all — it's service-wide only, on
+[`GET /service`](#get-service), so it isn't repeated per voice. `otherLanguages` reflects languages
+**actually installed** for that voice on this deployment, not every language the voice could
+theoretically support — see [configuration](configuration.md).
+
+Fields left at their default value are omitted from the response (`response_model_exclude_defaults`)
+— e.g. a voice with no cross-language installs has no `otherLanguages` key at all, not `[]`; a voice
+with no declared gender has no `gender` key, not `null`.
 
 ```json
 {
@@ -148,13 +154,9 @@ that voice on this deployment, not every language the voice could theoretically 
   "language": "en-US",
   "otherLanguages": [],
   "gender": "male",
-  "quality": "veryHigh",
-  "controls": {}
+  "quality": "veryHigh"
 }
 ```
-
-`controls` lists only the **enabled** controls — a control the voice doesn't support is absent
-(pocket supports none, so `{}`). A voice that supported SSML would show `"controls": {"ssml": true}`.
 
 **`ReadiumSpeechVoice`-aligned:**
 
@@ -163,17 +165,16 @@ that voice on this deployment, not every language the voice could theoretically 
 | `name` | string | Display name |
 | `originalName` | string | Raw engine voice id |
 | `language` | string | BCP-47, primary |
-| `otherLanguages` | string[] | Additional languages this voice is actually installed for — empty by default (`VOICE_LANGUAGES` unset) |
-| `gender` | `"male" \| "female" \| "neutral" \| null` | |
-| `quality` | `"veryLow"…"veryHigh" \| null` | Provider default unless a voice overrides it. PocketTTS voices are always `"veryHigh"` |
+| `otherLanguages` | string[] | Additional languages this voice is actually installed for — omitted when empty (`VOICE_LANGUAGES` unset) |
+| `gender` | `"male" \| "female" \| "neutral" \| null` | Omitted when unset |
+| `quality` | `"veryLow"…"veryHigh" \| null` | Provider default unless a voice overrides it. PocketTTS and ElevenLabs voices are both always `"veryHigh"` |
 
 **Server extensions (not in `ReadiumSpeechVoice`):**
 
 | Field | Type | Notes |
 |---|---|---|
-| `provider` | string | Backend serving this voice — `"pocket"` today |
+| `provider` | string | Backend serving this voice — `"pocket"` or `"elevenlabs"` |
 | `identifier` | string | Send this as `SynthesizeRequest.voice` |
-| `controls` | object | `{pitch, speed, ssml, boundary}` booleans — what this voice accepts, merged from the provider's defaults with any voice-specific override. PocketTTS: all `false` |
 
 ---
 
@@ -241,7 +242,7 @@ Only `text` is required; everything else defaults as shown (`voice` falls back t
 |---|---|---|
 | `audio` | string | Base64, encoded in `output.format` |
 | `format` | string | Echoes the requested/default format |
-| `boundaries` | `TimingMark[] \| null` | `null` = this voice doesn't support timing (`Voice.controls.boundary == false`) — true for PocketTTS voices (no alignment data available); ElevenLabs voices populate real per-word marks |
+| `boundaries` | `TimingMark[] \| null` | `null` = this voice's provider doesn't support timing (`GET /service` → `providers[].controls.boundary == false`) — true for PocketTTS (no alignment data available); ElevenLabs populates real per-word marks |
 
 ### `TimingMark`
 
@@ -263,7 +264,7 @@ No `end` field (next mark's `elapsedTime`, or total duration for the last word, 
 Things the schema or config surfaces but the server doesn't actually do yet:
 
 - **Auth** — `API_KEY_ENABLED` is validated at startup but never enforced on requests.
-- **Word boundaries on PocketTTS** — the underlying model exposes no timing/alignment data, so `controls.boundary` stays `false` for every PocketTTS voice. ElevenLabs populates real per-word marks.
+- **Word boundaries on PocketTTS** — the underlying model exposes no timing/alignment data, so PocketTTS's `providers[].controls.boundary` (on `GET /service`) stays `false`. ElevenLabs populates real per-word marks.
 - **`output.speed` / `output.pitch` / `output.sample_rate`** — accepted, validated, silently ignored by PocketTTS.
 - **`id` / `publication_id`** — parsed, not used for caching, idempotency, or dedup.
 - **SSML** — tags are stripped, not interpreted. No prosody control.

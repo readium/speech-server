@@ -66,7 +66,7 @@ class Synthesizer:
             )
 
         provider, voice = self._catalog.resolve(voice_ref)
-        boundaries_supported = voice.controls.boundary
+        boundaries_supported = provider.default_controls.boundary
 
         out = request.output
         logger.info(
