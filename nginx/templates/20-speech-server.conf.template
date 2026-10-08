@@ -14,7 +14,15 @@ server {
 server {
     listen 80;
     server_name ${DOMAIN};
-    return 301 https://$host$request_uri;
+
+    # Let's Encrypt HTTP-01 challenge (certbot --webroot /var/www/certbot).
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
