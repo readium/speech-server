@@ -52,3 +52,19 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Renders the template with envsubst (the nginx image does it on start) and
+      # runs nginx -t, so a bad directive fails here, not as a crash-looping nginx
+      # on deploy. Throwaway cert + `app` host stand in for the real ones.
+      - name: Validate nginx config
+        run: |
+          d=$(mktemp -d); mkdir -p $d/live/ci.test
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=ci.test \
+            -keyout $d/live/ci.test/privkey.pem -out $d/live/ci.test/fullchain.pem
+          docker run --rm --add-host app:127.0.0.1 -e DOMAIN=ci.test \
+            -v $PWD/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+            -v $PWD/nginx/snippets:/etc/nginx/snippets:ro \
+            -v $PWD/nginx/templates:/etc/nginx/templates:ro \
+            -v /dev/null:/etc/nginx/conf.d/default.conf:ro \
+            -v $d:/etc/letsencrypt:ro \
+            nginx:alpine nginx -t
