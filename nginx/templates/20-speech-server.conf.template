@@ -74,9 +74,8 @@ server {
         include /etc/nginx/snippets/proxy-pass.conf;
 
         # TTS inference is CPU-bound and can be slow (24-layer models, long text,
-        # emulated arch) — give synthesis more than the shared 120s read timeout so
-        # a legitimately long generation isn't cut off with a 504. This override must
-        # come AFTER the include, whose 120s would otherwise win.
+        # emulated arch) — give synthesis more than the 120s default on other
+        # routes so a legitimately long generation isn't cut off with a 504.
         proxy_read_timeout 300s;
     }
 
@@ -91,5 +90,9 @@ server {
         limit_conn perip 20;
 
         include /etc/nginx/snippets/proxy-pass.conf;
+
+        # No backend timeout exists today (TTS inference is unbounded) — pick a
+        # ceiling safely above realistic worst-case rather than nginx's low default.
+        proxy_read_timeout 120s;
     }
 }
