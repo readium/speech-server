@@ -208,7 +208,7 @@ Only `text` is required; everything else defaults as shown (`voice` falls back t
 | `id` | string \| null | `null` | Client-generated UUID v7 URN. Parsed, logged, **not otherwise used** — no caching or idempotency yet ([roadmap](#not-implemented)) |
 | `text` | string | — | Max `MAX_TEXT_LENGTH` chars (2000 default). Rejected if empty/whitespace after trim |
 | `ssml` | bool | `false` | PocketTTS strips tags before synthesis (regex `<[^>]+>` removal) — no SSML-aware prosody |
-| `language` | string \| null | `null` | For voices installed across more than one language (`VOICE_LANGUAGES=*:*` or an explicit override), picks which installed language to synthesize in; falls back to the voice's primary language if unset or not installed for that voice |
+| `language` | string \| null | `null` | For voices installed across more than one language (`VOICE_LANGUAGES=*:*` or an explicit override), picks which installed language to synthesize in; unset = the voice's primary language. A language the voice isn't installed for is rejected (no fallback) |
 | `voice` | string \| null | `null` | A voice `identifier` from `/voices`, or a raw `originalName`. 404 if not found. When omitted, falls back to `POCKET_DEFAULT_VOICE`; if that's unset too, `400` |
 | `prev_utterance` / `next_utterance` | string \| null | `null` | Accepted, passed into `SynthesisParams`; PocketTTS ignores both |
 | `publication_id` | string \| null | `null` | Accepted, currently unused (reserved for future cache scoping) |

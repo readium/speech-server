@@ -150,7 +150,7 @@ _migrate_voice_install_mode() {
 }
 
 # ── Language helpers ──────────────────────────────────────────────────────────
-ALL_LANGS=(en fr it de es pt)
+ALL_LANGS=(en fr it de es pt nl)
 BASE_LANGS=""  # protected language base while custom coverage is being edited
 
 lang_name() {
@@ -158,6 +158,7 @@ lang_name() {
         en) echo "English" ;;    fr) echo "French" ;;
         it) echo "Italian" ;;    de) echo "German" ;;
         es) echo "Spanish" ;;    pt) echo "Portuguese" ;;
+        nl) echo "Dutch" ;;
         hi) echo "Hindi" ;;
         *)  echo "$1" ;;
     esac

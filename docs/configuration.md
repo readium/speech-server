@@ -50,7 +50,7 @@ A linear two-step flow: pick languages first, then choose coverage over them.
 
 **Languages** re-runs the same multi-select as first-time setup — whatever you check becomes
 `LANGUAGES` (the ceiling: the base models that load). Newly-added languages download once on next
-restart (~219 MB for en/it/pt, ~672 MB for fr/de/es); removed languages keep their model files in
+restart (~111 MB for en, ~219 MB for each other language); removed languages keep their model files in
 the Docker volume — see [Disk space](#disk-space) to reclaim selectively.
 
 **Voice coverage** chooses what installs on top of the native defaults (see
@@ -92,7 +92,7 @@ only ever *adds* cross-language support:
 
 | Variable | Default | Description |
 |---|---|---|
-| `LANGUAGES` | _(empty)_ | Comma-separated BCP-47 language codes to **load as base models**. No hardcoded fallback — env-driven; unset means no base models load (no voices served). Size per language is *not* uniform: the 6-layer `en`/`it`/`de`/`es`/`pt` models are ~219 MB download / ~438 MB RAM; the 24-layer `fr` model is ~672 MB download / ~1344 MB RAM (loaded size ~2x the download, measured at startup). Supported: `en fr it de es pt`. This is the ceiling — nothing below can exceed it |
+| `LANGUAGES` | _(empty)_ | Comma-separated BCP-47 language codes to **load as base models**. No hardcoded fallback — env-driven; unset means no base models load (no voices served). Size per language is *not* uniform: see [model sizes](#model-sizes--ram). Supported: `en fr it de es pt nl`. This is the ceiling — nothing below can exceed it |
 | `VOICE_LANGUAGES` | _(empty)_ | Which voices get warmed against which of those loaded models, beyond each voice's own primary — see [Per-voice language overrides](#per-voice-language-overrides) |
 | `POCKET_DEFAULT_VOICE` | _(empty)_ | Default voice when none is specified. No hardcoded fallback — env-driven; empty means the setting is unset |
 
@@ -160,24 +160,23 @@ The wizard deliberately keeps sizes out of its prompts — they live here. All f
 `kyutai/pocket-tts-without-voice-cloning` models (what the server loads without gated access) and
 are approximate.
 
-**Base language model** — one per selected language, loaded once per worker. Two size classes:
+**Base language model** — one per selected language, loaded once per worker. Download is the
+Hugging Face file size; RAM is the whole server process (including the torch runtime) measured after
+loading that one language with its native voices, on pocket-tts 4.0.1:
 
-| Languages | Layers | Download (disk, once) | RAM (per worker) |
+| Language | Layers | Download (disk, once) | Process RAM (per worker) |
 |---|---|---|---|
-| `en` `it` `de` `es` `pt` | 6 | ~219 MB | ~438 MB |
-| `fr` | 24 (`_24l`) | ~672 MB | ~1344 MB |
+| `en` (`english_18m_2026-10`) | 8 (d_model 512) | ~111 MB | ~540 MB (21 voices) |
+| `fr` | 6 | ~219 MB | ~880 MB (1 voice) |
+| `it` `de` `es` `pt` `nl` | 6 | ~219 MB | not measured; expect about the `fr` figure |
 
-RAM ≈ 2× the download (measured at startup). This is the dominant cost.
+This is the dominant cost. Loading `en`+`fr`+`nl` with every voice cross-installed (`VOICE_LANGUAGES=*:*`)
+used ~1.6 GB. Add a language and its whole base model is added per worker.
 
-**Voice embedding** — one per installed `(voice, language)`, small: ~6 MB into a 6-layer language,
-~25–33 MB into a 24-layer language. Native voices carry one; each cross-language pair adds one more.
+**Voice embedding** — one per installed `(voice, language)`, small: ~6 MB into a language model.
+Native voices carry one; each cross-language pair adds one more.
 
-**RAM formula:** `WORKERS × (sum of each active language's RAM size)`.
-Example: 1 worker, English + French = `438 + 1344 ≈ 1782 MB` RAM (download ~891 MB base + a few
-hundred MB of embeddings). Add a language, and its whole base model is added per worker.
-
-To see the exact **voice/pair count** for your config (not sizes), the wizard's config view uses
-`scripts/pocket_plan.py`.
+**RAM:** `WORKERS × (RAM of each active language)`, plus embeddings. Measure on your own hardware before sizing `WORKERS`.
 
 ## Disk space
 

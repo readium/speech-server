@@ -11,7 +11,7 @@ import pytest
 from app.config.settings import Settings
 
 _POCKET_JSON = Path(__file__).parent.parent / "app" / "data" / "voices" / "pocket" / "voices.json"
-_SUPPORTED = {"en", "fr", "it", "de", "es", "pt"}
+_SUPPORTED = {"en", "fr", "it", "de", "es", "pt", "nl"}
 
 
 @contextmanager
@@ -36,7 +36,7 @@ def test_pocket_json_covers_all_supported_languages() -> None:
 def test_pocket_json_english_voice_count() -> None:
     voices = json.loads(_POCKET_JSON.read_text())
     en = [v for v in voices if v["language"].split("-")[0].lower() == "en"]
-    assert len(en) == 21  # voices whose PRIMARY language is English (not all 26 — each
+    assert len(en) == 21  # voices whose PRIMARY language is English (not all 27 — each
     # voice appears once now, not duplicated per language)
 
 
@@ -139,7 +139,7 @@ async def test_list_voices_filters_to_single_language() -> None:
     with language_config(*langs):
         result = await provider.list_voices()
     assert all("fr" in _prefixes(v) for v in result)
-    assert len(result) == 26  # every voice declares French as primary or additional
+    assert len(result) == 27  # every voice declares French as primary or additional
 
 
 @pytest.mark.asyncio
@@ -148,7 +148,7 @@ async def test_list_voices_multiple_languages() -> None:
     with language_config(*langs):
         result = await provider.list_voices()
     assert all({"en", "fr"} & _prefixes(v) for v in result)
-    assert len(result) == 26  # each voice counted once, not per matching language
+    assert len(result) == 27  # each voice counted once, not per matching language
 
 
 @pytest.mark.asyncio
@@ -156,7 +156,7 @@ async def test_list_voices_all_languages_returns_all() -> None:
     provider, langs = _loaded_provider(*_SUPPORTED)
     with language_config(*langs):
         result = await provider.list_voices()
-    assert len(result) == 26  # all voices, each still counted once
+    assert len(result) == 27  # all voices, each still counted once
 
 
 @pytest.mark.asyncio

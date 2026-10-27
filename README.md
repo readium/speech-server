@@ -46,7 +46,7 @@ curl -s -X POST http://localhost:8000/synthesize \
   -o /tmp/speech.wav && open /tmp/speech.wav
 ```
 
-> **First start** downloads the selected language models (~240 MB each) into a persistent Docker volume. Every restart after that is instant — models are already cached.
+> **First start** downloads the selected language models (~110–220 MB each) into a persistent Docker volume. Every restart after that is instant — models are already cached.
 
 ---
 

@@ -251,9 +251,10 @@
 import {
   SpeechServerEngine,
   ReadiumSpeechNavigator,
+  SpeechPreferences,
   setupDecorations,
   DecorationStyleType,
-} from "https://esm.sh/@readium/speech@0.5.0";
+} from "https://esm.sh/@readium/speech@0.18.0";
 
 const el = id => document.getElementById(id);
 const textEl=el('text'), voiceEl=el('voice'), formatEl=el('format'), languageEl=el('language'), vmetaEl=el('vmeta');
@@ -359,12 +360,10 @@ async function rebuildEngine() {
   engine = new SpeechServerEngine({ endpoints: ENDPOINTS, fetch: instrumentedFetch, format: currentFormatOptions() });
   if (voices.length) engine.setAvailableVoices(voices);
   speechNavigator = new ReadiumSpeechNavigator(engine);
-  // Content language drives our own language <select>, independent of the voice's own
-  // language — without this the engine never sends `language` at all (see 0.4.0's
-  // setSpeakInContentLanguage), silently breaking the cross-language voice picks the UI offers.
-  speechNavigator.setSpeakInContentLanguage(true);
+  // Utterances are always spoken in their own `language` (0.15.0 dropped the
+  // setSpeakInContentLanguage opt-in), which is what our language <select> sets.
   bindNavigatorEvents(speechNavigator);
-  if (prevVoiceId) speechNavigator.setVoice(prevVoiceId);
+  if (prevVoiceId) await speechNavigator.submitPreferences(new SpeechPreferences({ voice: prevVoiceId }));
 }
 let langDisplay; try { langDisplay = new Intl.DisplayNames(['en'],{type:'language'}); } catch { langDisplay = null; }
 const nameOfLang = c => (langDisplay ? langDisplay.of(c) : c) || c;
@@ -494,12 +493,12 @@ function dur() {
 }
 function progressNow() { const d = dur(); return d ? Math.min(1, currentPlaybackTime() / d) : 0; }
 
-/* ponytail: SpeechServerEngine (0.5.0) has no public playback-position or seek API — it
+/* ponytail: SpeechServerEngine (0.18.0) has no public playback-position or seek API — it
    schedules AudioBufferSourceNodes on a private AudioContext and never exposes them. This
    reaches into engine.audioContext/scheduledChunks/handleUtteranceEnded (private fields,
    accessible at runtime since TS `private` is compile-time only) to read position and to
    reschedule nodes at an offset via AudioBufferSourceNode.start(when, offset) — the only way
-   Web Audio supports seeking a started source. Pinned to @readium/speech@0.5.0's internal
+   Web Audio supports seeking a started source. Pinned to @readium/speech@0.18.0's internal
    shape; drop this the moment the engine ships a public seek()/getCurrentTime(). */
 function chunkRanges() {
   const scheduled = engine && engine['scheduledChunks'];
@@ -707,15 +706,19 @@ function bindNavigatorEvents(nav) {
   nav.on('end', onTransportEnd);
 }
 
-function speak() {
+async function speak() {
   if (!textEl.value.trim()) { showError('Write some text first.'); textEl.focus(); return; }
   if (!voiceEl.value) { showError('No voice selected.'); return; }
   clearError();
   speakBtn.disabled = true; speakLabel.textContent = 'Synthesizing…';
 
-  speechNavigator.setVoice(voiceEl.value);
-  speechNavigator.setRate(speedEl.value && !speedEl.disabled ? (parseFloat(speedEl.value) || 1) : 1);
-  if (pitchEl.value && !pitchEl.disabled) speechNavigator.setPitch(parseFloat(pitchEl.value));
+  // voice / rate / pitch are Preferences since 0.15.0 (setVoice/setRate/setPitch were removed).
+  const prefs = {
+    voice: voiceEl.value,
+    rate: speedEl.value && !speedEl.disabled ? (parseFloat(speedEl.value) || 1) : 1,
+  };
+  if (pitchEl.value && !pitchEl.disabled) prefs.pitch = parseFloat(pitchEl.value);
+  await speechNavigator.submitPreferences(new SpeechPreferences(prefs));
 
   const ssmlOn = ssmlEl.checked && !ssmlEl.disabled;
   const utterance = { language: languageEl.value };

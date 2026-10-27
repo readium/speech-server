@@ -23,18 +23,18 @@ logger = logging.getLogger(__name__)
 
 _VOICES_PATH = Path(__file__).parent.parent / "data" / "voices" / "pocket" / "voices.json"
 
-# BCP-47 prefix → pocket-tts language identifier. Default to the fast/small 6-layer model for
-# every language that has one. French is the exception: pocket-tts ships only a 24-layer French
-# (`french_24l`), no 6-layer variant. de/es/it/pt/en also have 24-layer (`_24l`) variants that are
-# higher quality but ~3× larger and ~4× slower — not used here. Making this selectable is deferred
-# (see issue); flip a value to its `_24l` form to opt a language into the heavier model.
+# BCP-47 prefix → pocket-tts language identifier (pocket-tts >= 4.0). English is Kyutai's 18.2M
+# flagship (8 layers, d_model 512, ~111 MB), which matches the older ~100M model's quality at ~3.5x
+# the CPU speed; every other language uses its ~100M 6-layer model (~219 MB). The older 24-layer
+# `_24l` models (~672 MB, ~3x larger, slower) are not supported.
 _LANG_MODEL: dict[str, str] = {
-    "en": "english",
-    "fr": "french_24l",
+    "en": "english_18m_2026-10",
+    "fr": "french",
     "it": "italian",
     "de": "german",
     "es": "spanish",
     "pt": "portuguese",
+    "nl": "dutch",
 }
 
 
