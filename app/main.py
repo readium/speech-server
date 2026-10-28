@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -40,6 +41,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     init_semaphore(settings.max_concurrent_syntheses)
 
     registry = _build_registry()
+    if (
+        settings.app_env == "production"
+        and "elevenlabs" in {p.id for p in registry.all()}
+        and settings.elevenlabs_daily_char_limit == 0
+    ):
+        logger.warning(
+            "ELEVENLABS_DAILY_CHAR_LIMIT=0 (unlimited) on a public server — anyone can spend "
+            "your ElevenLabs credits. Set a daily cap."
+        )
     catalog = VoiceCatalog(registry)
     breakers = CircuitBreakerRegistry(
         [p.id for p in registry.all()],
@@ -103,6 +113,16 @@ def create_app() -> FastAPI:
             allowed_hosts=[settings.domain, "localhost", "127.0.0.1"],
         )
     app.add_middleware(RequestLoggingMiddleware)
+    if settings.cors_origin_list:
+        # Added last = outermost, so even error responses carry the CORS headers.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origin_list,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Content-Type"],
+            # Not CORS-safelisted: JS reads them only if exposed (pagination, tracing, backoff).
+            expose_headers=["X-Request-Id", "X-Total-Count", "X-Offset", "X-Limit", "Retry-After"],
+        )
     register_error_handlers(app)
 
     app.include_router(health_router)

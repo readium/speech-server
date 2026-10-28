@@ -74,14 +74,18 @@ only ever *adds* cross-language support:
 |---|---|---|
 | `HF_TOKEN` | _(empty)_ | HuggingFace token. Optional — prevents rate-limiting on first-run model downloads. Shared across any provider that pulls models from HF |
 | `WORKERS` | `1` | Uvicorn worker processes. Each loads a full copy of every active language model |
-| `MAX_CONCURRENT_SYNTHESES` | `1` | Max parallel CPU inference jobs per worker. Each job uses ~2 cores; `configure.sh` derives this from `nproc`/RAM so cores ≈ workers × concurrency × 2 (no oversubscription) |
+| `MAX_CONCURRENT_SYNTHESES` | `1` | Max parallel CPU inference jobs per worker. Each language model is single-threaded behind a lock, so this only parallelises **different** languages — for several readers in the same language, raise `WORKERS` instead. Each job uses ~2 cores; `configure.sh` derives this from `nproc`/RAM so cores ≈ workers × concurrency × 2 (no oversubscription) |
 | `CIRCUIT_BREAKER_ENABLED` | `true` | Trip a provider's circuit breaker after repeated `synthesize()` failures, returning `503` immediately instead of hammering a broken provider |
 | `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `5` | Consecutive failures before a provider's breaker opens |
-| `CIRCUIT_BREAKER_RECOVERY_SECONDS` | `30` | How long an open breaker waits before allowing one trial call |
-| `API_KEY_ENABLED` | `false` | Reserved — validated at startup but **not yet enforced** on any route |
-| `API_KEY` | _(empty)_ | Reserved, same caveat |
+| `CIRCUIT_BREAKER_RECOVERY_SECONDS` | `30` | How long an open breaker waits before allowing one trial call (one at a time) |
+| `API_KEY_ENABLED` | `false` | Not implemented. `true` is rejected at startup (no route checks a key, so it would leave the API open) |
+| `API_KEY` | _(empty)_ | Reserved |
+| `CORS_ORIGINS` | `https://readium.org` | Comma-separated browser origins (scheme + host, no path) allowed to call the API cross-origin. Default is the Readium Speech demos (`https://readium.org/speech/demo/`). Empty disables CORS. nginx also lets `OPTIONS` through for the preflight |
+| `SYNTHESIS_QUEUE_TIMEOUT_SECONDS` | `30` | How long a request waits for a free synthesis slot before `429` "busy" |
 | `LOG_LEVEL` | `INFO` | `DEBUG` · `INFO` · `WARNING` · `ERROR` |
 | `PORT` | `8000` | Listen port |
+| `HOST` | `0.0.0.0` | Address uvicorn binds to. Leave as is in Docker; only change it to bind to one interface outside Docker |
+| `APP_ENV` | `development` | `production` turns on `TrustedHostMiddleware` (needs `DOMAIN`), the OpenAPI `servers` entry and the ElevenLabs uncapped-spend warning. The wizard writes `production`; set `development` for local runs |
 | `MAX_TEXT_LENGTH` | `2000` | Maximum characters per synthesis request |
 | `FFMPEG_BIN` | `ffmpeg` | Path to ffmpeg binary (bundled in the Docker image) |
 | `ENABLED_PROVIDERS` | `pocket` | Comma-separated provider ids to register at startup: `pocket`, `elevenlabs` |
@@ -107,7 +111,7 @@ Only loaded/required when `elevenlabs` is in `ENABLED_PROVIDERS`. Managed by the
 | `ELEVENLABS_MODEL_ID` | `eleven_multilingual_v2` | Model + cost multiplier. `flash_v2_5`/`turbo_v2_5` are 0.5 credits/char (cheapest); `multilingual_v2`/`v3` are 1.0. [Compare](https://elevenlabs.io/docs/models) · [pricing](https://elevenlabs.io/pricing) |
 | `ELEVENLABS_LANGUAGES` | _(empty)_ | ElevenLabs' **own** languages (comma BCP-47, e.g. `en,fr,ja`), separate from pocket's `LANGUAGES` — languages are provider-scoped. Empty = no ElevenLabs voices. Supported: the 29 languages common to all ElevenLabs models (`ar bg cs da de el en es fi fil fr hi hr id it ja ko ms nl pl pt ro ru sk sv ta tr uk zh`) |
 | `ELEVENLABS_DAILY_CHAR_LIMIT` | `0` | Max characters sent to ElevenLabs **per day** so users can't spam it. `0` = unlimited. Resets at 00:00 UTC; over the cap `/synthesize` returns `429 rate_limited`. Pick per your model's rate ([pricing](https://elevenlabs.io/pricing/api) — flash/turbo bill half, so the same cost buys ~2× the characters). Host-wide (shared across workers via a JSON file). Set via wizard: Manage provider → elevenlabs → Set daily limit |
-| `ELEVENLABS_USAGE_FILE` | `/tmp/elevenlabs_usage.json` | Where the daily counter is stored. Point at a volume path to persist the count across container restarts |
+| `ELEVENLABS_USAGE_FILE` | `/tmp/elevenlabs_usage.json` (code default) | Where the daily counter is stored. `docker-compose.yml` sets it to `/weights/elevenlabs_usage.json` on the weights volume, so the count survives redeploys; outside Docker, point it at a persistent path |
 | `ELEVENLABS_BASE_URL` | `https://api.elevenlabs.io` | API base URL — override for testing |
 
 `LANGUAGES` and `VOICE_LANGUAGES` operate at different levels and both matter: `LANGUAGES`
@@ -208,4 +212,4 @@ First-time setup writes `APP_ENV=production` and prompts for `DOMAIN`. `make sta
 
 For local dev, set `APP_ENV=development` in `.env` (`DOMAIN` becomes optional) and use `make dev-docker` — exposes `:8000` directly with no nginx.
 
-nginx rate-limits `/synthesize` (2 req/s, burst 4) and caps connections per IP. A `503` from behind nginx is a plain nginx error page, not the app's Problem Details JSON.
+nginx rate-limits `/synthesize` (2 req/s, burst 4) and caps connections per IP. Over the limit it answers `429` with a plain nginx error page, not the app's Problem Details JSON.

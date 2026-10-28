@@ -1,7 +1,7 @@
 import base64
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response
 
 from app.api.deps import SynthesizerDep, require_ready
 from app.api.errors import problem_response
@@ -31,7 +31,6 @@ router = APIRouter(tags=["synthesize"])
         400: problem_response("Empty text, or no voice given and no default configured"),
         404: problem_response("Voice not found, or voice/language not supported here"),
         413: problem_response("Text exceeds max length"),
-        415: problem_response("Unsupported audio format"),
         422: problem_response("Request schema validation error"),
         503: problem_response("Service starting up (models loading), or provider unavailable"),
     },
@@ -89,7 +88,7 @@ router = APIRouter(tags=["synthesize"])
 async def synthesize(
     request: SynthesizeRequest,
     synthesizer: SynthesizerDep,
-) -> StreamingResponse | JSONResponse:
+) -> Response:
     audio_bytes, content_type, boundaries, boundaries_supported = await synthesizer.synthesize(
         request
     )
@@ -106,8 +105,8 @@ async def synthesize(
         )
 
     ext = content_type.split("/")[-1].replace("mpeg", "mp3")
-    return StreamingResponse(
-        iter([audio_bytes]),
+    return Response(
+        content=audio_bytes,
         media_type=content_type,
         headers={"Content-Disposition": f"inline; filename=speech.{ext}"},
     )

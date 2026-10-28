@@ -77,7 +77,7 @@ _provider_enabled() {  # $1=id → "yes"/"no"
 
 # Hardware-derived defaults. pocket-tts uses ~2 CPU cores per synthesis (its
 # generate→decode pipeline; docs: "Uses only 2 CPU cores") and each worker holds a
-# full model copy (~2 GB for en+fr). So 1 worker ≈ 2 cores + ~2 GB RAM. Derive
+# full model copy (measured ~0.5 GB en, ~0.9 GB fr; 2 GB/worker keeps a margin). So 1 worker ≈ 2 cores + ~2 GB RAM. Derive
 # non-thrashing WORKERS / MAX_CONCURRENT_SYNTHESES from the box instead of shipping a
 # static default that only fits one machine. Sets DETECTED_* and SUGGESTED_* globals.
 _detect_hw() {
@@ -484,9 +484,13 @@ PORT=8000
 WORKERS=1
 DOMAIN=
 
-# ── Auth (off by default) ──
+# ── Auth (not implemented — API_KEY_ENABLED=true is rejected at startup) ──
 API_KEY_ENABLED=false
 API_KEY=
+
+# ── CORS: browser origins allowed to call the API (comma-separated, scheme+host, no path).
+# Default is the Readium Speech demos at https://readium.org/speech/demo/. Empty = disabled. ──
+CORS_ORIGINS=https://readium.org
 
 # ── Concurrency ──
 MAX_CONCURRENT_SYNTHESES=2
@@ -548,7 +552,18 @@ _show_plan() {
     local langs voice_lang
     langs=$(current_langs)
     voice_lang=$(get_penv VOICE_LANGUAGES)
-    python3 "$POCKET_PLAN" "$VOICES_JSON" "$langs" "$voice_lang"
+    # pocket_plan imports app.providers.voice_loading, which needs pydantic — a bare system
+    # python3 lacks it. Borrow a throwaway one via uv; without uv, skip the view, don't abort.
+    local py=(python3)
+    if ! python3 -c 'import pydantic' 2>/dev/null; then
+        if command -v uv >/dev/null 2>&1; then
+            py=(uv run --no-project --quiet --with pydantic python3)
+        else
+            warn "Install plan unavailable (needs pydantic or uv). Languages: ${langs:-none}"
+            return 0
+        fi
+    fi
+    "${py[@]}" "$POCKET_PLAN" "$VOICES_JSON" "$langs" "$voice_lang"
 }
 
 do_show_pocket_config() {
@@ -577,6 +592,13 @@ _menu_change_languages() {
     fi
     set_penv LANGUAGES "$new"
     ok "LANGUAGES updated → $new"
+    local pairs kept
+    pairs=$(get_penv VOICE_LANGUAGES)
+    kept=$(_voicelang_prune_to_langs "$pairs" "$new")
+    if [[ "$kept" != "$pairs" ]]; then
+        set_penv VOICE_LANGUAGES "$kept"
+        warn "Dropped cross-language pairs for languages no longer selected: ${pairs} → ${kept:-(none)}"
+    fi
     printf '\n%sNote:%s new languages download on next start; removed ones stay on disk\n' "$Y" "$R"
     printf '(reclaim: %smake prune-models-apply%s). Restart to apply: %smake stop && make start%s\n\n' \
         "$C" "$R" "$C" "$R"
@@ -689,6 +711,23 @@ _voicelang_delete() {
         [[ -z "$p" ]] && continue
         bare="${p#-}"
         [[ "$bare" == "${voice}:${lang}" ]] && continue
+        out="${out:+${out},}${p}"
+    done
+    echo "$out"
+}
+
+# Drop explicit pairs (add or removal form) whose language isn't in `langs` — the server only
+# installs a pair for a language that is in LANGUAGES, so such a pair would be silently ignored.
+_voicelang_prune_to_langs() {
+    local list="$1" langs="$2" out="" p bare
+    [[ -z "$list" ]] && return
+    IFS=',' read -ra _p <<< "$list"
+    for p in "${_p[@]}"; do
+        [[ -z "$p" ]] && continue
+        bare="${p#-}"
+        if [[ "$p" != "*:*" ]]; then
+            case ",${langs}," in *",${bare#*:},"*) ;; *) continue ;; esac
+        fi
         out="${out:+${out},}${p}"
     done
     echo "$out"
@@ -983,7 +1022,7 @@ do_show_config() {
     workers=$(get_env WORKERS); workers="${workers:-1}"
     hf_token=$(get_env HF_TOKEN)
     key_enabled=$(get_env API_KEY_ENABLED); key_enabled="${key_enabled:-false}"
-    max_syn=$(get_env MAX_CONCURRENT_SYNTHESES); max_syn="${max_syn:-2}"
+    max_syn=$(get_env MAX_CONCURRENT_SYNTHESES); max_syn="${max_syn:-1}"
 
     printf '  %-30s %s%s%s\n' "Workers:" "$C" "$workers" "$R"
     printf '  %-30s %s%s%s\n' "Max concurrent syntheses:" "$C" "$max_syn" "$R"
@@ -996,6 +1035,9 @@ do_show_config() {
     fi
 
     printf '  %-30s %s%s%s\n' "API key auth:" "$C" "$key_enabled" "$R"
+    local cors="https://readium.org (default)"
+    grep -q '^CORS_ORIGINS=' "$ENV_FILE" 2>/dev/null && cors="$(get_env CORS_ORIGINS)"
+    printf '  %-30s %s%s%s\n' "CORS origins:" "$C" "${cors:-(disabled)}" "$R"
     printf '  %-30s %s%s%s\n' "Enabled providers:" "$C" "$(get_env ENABLED_PROVIDERS)" "$R"
     printf '\n  %sSee "Manage provider" for provider-specific config.%s\n' "$Y" "$R"
     printf '  Config files: %s, %s' "$ENV_FILE" "$POCKET_ENV_FILE"

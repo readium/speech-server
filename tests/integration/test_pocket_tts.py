@@ -6,6 +6,7 @@ Skipped by default (CI uses fast suite only).
 
 import pytest
 
+from app.core.concurrency import init_semaphore
 from app.providers.pocket_tts import PocketTTSProvider
 from app.schemas.audio import SynthesisParams
 from tests.helpers.audio import assert_valid_pcm, pcm_duration_seconds
@@ -15,6 +16,7 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 async def pocket() -> PocketTTSProvider:
+    init_semaphore(1)  # synthesize() runs inference through the semaphore
     p = PocketTTSProvider()
     await p.load()
     return p

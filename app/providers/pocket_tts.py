@@ -90,6 +90,17 @@ class PocketTTSProvider(TTSProvider):
                 unknown,
             )
 
+        for key, langs in add_map.items():
+            missing = langs - enabled
+            if missing and key in known_keys:
+                logger.warning(
+                    "VOICE_LANGUAGES adds '%s' for %s, but %s not in LANGUAGES — ignored "
+                    "(add the language to LANGUAGES to install it)",
+                    key,
+                    sorted(missing),
+                    "it is" if len(missing) == 1 else "they are",
+                )
+
         lang_voices: dict[str, list[tuple[VoiceEntry, str]]] = {}
         self._voices = []
         for entry in entries:

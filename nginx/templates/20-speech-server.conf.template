@@ -27,6 +27,7 @@ server {
 
 server {
     listen 443 ssl;
+    http2 on;  # the browser reads ahead with several parallel /synthesize requests
     server_name ${DOMAIN};
 
     ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
@@ -64,23 +65,26 @@ server {
     # requests on a hard refresh) could trip nginx's built-in 503 rate-limit
     # rejection well before actually threatening the synthesis backend.
     location = /synthesize {
-        limit_except POST {
+        # OPTIONS: CORS preflight for the browser demo (JSON POST).
+        limit_except POST OPTIONS {
             deny all;
         }
 
         limit_req zone=synth burst=4 nodelay;
         limit_conn perip 10;
+        # 429 (not nginx's default 503) so clients treat a rate limit as "slow down", not an outage.
+        limit_req_status 429;
+        limit_conn_status 429;
 
         include /etc/nginx/snippets/proxy-pass.conf;
 
-        # TTS inference is CPU-bound and can be slow (24-layer models, long text,
-        # emulated arch) — give synthesis more than the 120s default on other
+        # TTS inference is CPU-bound and can be slow (long text, emulated arch) — give synthesis more than the 120s default on other
         # routes so a legitimately long generation isn't cut off with a 504.
         proxy_read_timeout 300s;
     }
 
     location / {
-        limit_except GET POST HEAD {
+        limit_except GET POST HEAD OPTIONS {
             deny all;
         }
 

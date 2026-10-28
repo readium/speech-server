@@ -43,8 +43,9 @@ USER appuser
 
 EXPOSE 8000
 
-# start_period covers first-run model downloads (~240 MB per language)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=300s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"
+# /readyz (not /healthz): healthy only once models are loaded, so `compose up --wait` and the
+# deploy fail when the load fails. start_period covers first-run downloads (~110-220 MB/language).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=600s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz')"
 
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]

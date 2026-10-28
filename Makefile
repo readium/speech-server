@@ -1,5 +1,8 @@
 DC     = docker compose -f docker-compose.yml -f docker-compose.dev.yml
-DC_RUN = $(DC) run --rm --no-deps app
+# The runtime image has no dev tools (ruff/pytest/mypy) and its entrypoint ignores arguments, so
+# bypass it and sync them first. VOICE_LANGUAGES= keeps a local pocket-tts.env out of the tests.
+DC_RUN = $(DC) run --rm --no-deps --entrypoint "" -e VOICE_LANGUAGES= app sh -c
+DEV    = uv sync --frozen --dev --no-install-project -q
 
 .DEFAULT_GOAL := help
 
@@ -22,22 +25,22 @@ dev-docker-build: ## Rebuild then run the dev stack (docker)
 	$(DC) up --build
 
 test-docker: ## Run unit/route tests (docker)
-	$(DC_RUN) pytest -m 'not integration and not slow' -v
+	$(DC_RUN) "$(DEV) && pytest -p no:cacheprovider -m 'not integration and not slow' -v"
 
 test-integration-docker: ## Run integration tests (docker)
-	$(DC_RUN) pytest -m integration -v
+	$(DC_RUN) "$(DEV) && pytest -p no:cacheprovider -m integration -v"
 
 lint-docker: ## Run ruff check (docker)
-	$(DC_RUN) ruff check app/ tests/
+	$(DC_RUN) "$(DEV) && ruff check --no-cache app/ tests/"
 
 fmt-docker: ## Run ruff format (docker)
-	$(DC_RUN) ruff format app/ tests/
+	$(DC_RUN) "$(DEV) && ruff format --no-cache app/ tests/"
 
 fmt-check-docker: ## Check ruff formatting without writing (docker)
-	$(DC_RUN) ruff format --check app/ tests/
+	$(DC_RUN) "$(DEV) && ruff format --check --no-cache app/ tests/"
 
 typecheck-docker: ## Run mypy (docker)
-	$(DC_RUN) mypy app/
+	$(DC_RUN) "$(DEV) && mypy --cache-dir=/tmp/mypy app/"
 
 ci-docker: lint-docker fmt-check-docker typecheck-docker test-docker ## Run full CI suite (docker)
 

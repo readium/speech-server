@@ -20,7 +20,9 @@ Base path: `/`. All bodies are `application/json` unless noted.
 
 ## Authentication
 
-None enforced today. `API_KEY_ENABLED` / `API_KEY` exist in [configuration](configuration.md) but no middleware checks them yet — every route is open regardless of the setting. Don't rely on it.
+None. Every route is open. `API_KEY_ENABLED=true` is rejected at startup (it would not protect anything), so the setting can't give a false sense of security.
+
+**CORS:** browsers on `CORS_ORIGINS` (default `https://readium.org`, the Readium Speech demos) may call the API cross-origin; `X-Request-Id`, `X-Total-Count`, `X-Offset`, `X-Limit` and `Retry-After` are readable from JavaScript. Set `CORS_ORIGINS=` (empty) to disable.
 
 In production, nginx sits in front (see [configuration](configuration.md#production-vs-development)) and rate-limits `/synthesize` (2 req/s, burst 4) plus per-IP connection caps — unrelated to app auth, but the only request throttling that exists.
 
@@ -54,7 +56,7 @@ Pydantic schema errors (`422`) additionally carry an `errors` array (raw Pydanti
 | 502 | `provider_error` | Provider or ffmpeg failed (bad voice state, generation error, encode failure) |
 | 503 | `service_not_ready` | Three causes: (1) **startup** — the server accepts connections immediately and loads models in the background, so `/synthesize` and `/voices` return 503 until warmup finishes (`/healthz` and `/service` stay up throughout; `/readyz` flips to 200 when ready); (2) `/readyz` — also 503 if ffmpeg is missing or a provider is unhealthy; (3) `/synthesize` — also 503 when a provider's circuit breaker is open, see [configuration](configuration.md) for `CIRCUIT_BREAKER_*` |
 
-`unsupported_format` (415), `rate_limited` (429), and `provider_timeout` (504) are declared in `app/api/errors.py` for future providers but no current code path raises them — a `429`/`503` seen in production is nginx's own rate/connection limit, a plain nginx error page, not this JSON shape.
+`provider_timeout` (504) is declared in `app/api/errors.py` for the ElevenLabs provider. `rate_limited` (429) is raised when the server is busy (no synthesis slot within `SYNTHESIS_QUEUE_TIMEOUT_SECONDS`; the response carries `Retry-After: 5`) and by the ElevenLabs daily cap. A `429` that is a plain nginx error page, not this JSON shape, is nginx's own rate/connection limit on `/synthesize`. A `503` is a real outage (models loading, or a provider's circuit breaker is open).
 
 ---
 
@@ -214,7 +216,7 @@ Only `text` is required; everything else defaults as shown (`voice` falls back t
 | `publication_id` | string \| null | `null` | Accepted, currently unused (reserved for future cache scoping) |
 | `boundary` | bool | `false` | `true` → JSON response with base64 audio + timing marks instead of raw binary |
 | `output.format` | `"wav" \| "mp3" \| "opus"` | `"wav"` | `wav` bypasses ffmpeg and is highest quality (fastest, no lossy encoding); `mp3`/`opus` are ffmpeg-encoded on request — see [`GET /service`](#get-service) for what's available |
-| `output.bitrate` | int \| null | `null` | kbps for `mp3`/`opus`; ffmpeg default (~128 mp3, ~64 opus) if unset; ignored for `wav` |
+| `output.bitrate` | int \| null | `null` | kbps for `mp3`/`opus`; server default if unset (32 kbps opus, 64 kbps mp3); ignored for `wav` |
 | `output.sample_rate` | int \| null | `null` | **Accepted but not applied** — output is always the model's native rate (24000 Hz for PocketTTS). No resampling happens today |
 | `output.speed` | float | `1.0` | **Accepted but ignored** by PocketTTS (logged at debug level) |
 | `output.pitch` | float \| null | `null` | **Accepted but ignored** by PocketTTS |
@@ -263,7 +265,7 @@ No `end` field (next mark's `elapsedTime`, or total duration for the last word, 
 
 Things the schema or config surfaces but the server doesn't actually do yet:
 
-- **Auth** — `API_KEY_ENABLED` is validated at startup but never enforced on requests.
+- **Auth** — there is none; `API_KEY_ENABLED=true` is rejected at startup.
 - **Word boundaries on PocketTTS** — the underlying model exposes no timing/alignment data, so PocketTTS's `providers[].controls.boundary` (on `GET /service`) stays `false`. ElevenLabs populates real per-word marks.
 - **`output.speed` / `output.pitch` / `output.sample_rate`** — accepted, validated, silently ignored by PocketTTS.
 - **`id` / `publication_id`** — parsed, not used for caching, idempotency, or dedup.

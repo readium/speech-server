@@ -21,15 +21,26 @@ class Settings(BaseSettings):
     workers: int = Field(default=1, ge=1)
     domain: str = ""
 
-    # Auth (off by default for PoC)
+    # Auth: not implemented — no route checks the key. API_KEY_ENABLED=true is rejected at startup
+    # so nobody believes the API is locked when it isn't.
     api_key_enabled: bool = False
     api_key: str = ""
+
+    # Browser origins allowed to call the API cross-origin (comma-separated, exact scheme+host).
+    # Default: the Readium Speech demos at https://readium.org/speech/demo/. Empty = no CORS.
+    cors_origins: str = "https://readium.org"
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
 
     # Concurrency. Safe hardware-blind floor: 1 = never oversubscribe CPU. Each
     # synthesis uses ~2 cores (pocket-tts's generate→decode pipeline), so a 2-core box
     # thrashes at 2 under mixed-language load. configure.sh derives a higher value from
     # nproc/RAM for bigger hardware.
     max_concurrent_syntheses: int = Field(default=1, ge=1)
+    # How long a request waits for a free synthesis slot before getting 429 "busy".
+    synthesis_queue_timeout_seconds: float = Field(default=30.0, gt=0)
 
     # Providers
     enabled_providers: str = "pocket"
@@ -127,8 +138,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_auth_and_providers(self) -> "Settings":
-        if self.api_key_enabled and not self.api_key:
-            raise ValueError("API_KEY must be set when API_KEY_ENABLED is true")
+        if self.api_key_enabled:
+            raise ValueError(
+                "API_KEY_ENABLED is not supported yet: no route checks the key, so the API "
+                "would be open. Unset it (rate limiting is done by nginx)."
+            )
         providers = [p.strip() for p in self.enabled_providers.split(",")]
         if self.default_provider not in providers:
             raise ValueError(f"DEFAULT_PROVIDER '{self.default_provider}' not in ENABLED_PROVIDERS")

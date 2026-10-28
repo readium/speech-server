@@ -7,9 +7,8 @@ client_body_timeout 10s;
 keepalive_timeout 15s;
 large_client_header_buffers 2 1k;
 
-# Sized around app/config/settings.py's max_concurrent_syntheses default (2):
-# protects a tiny backend semaphore from an unauthenticated burst
-# (API_KEY_ENABLED defaults false).
+# Sized around app/config/settings.py's max_concurrent_syntheses default (1):
+# protects a tiny backend semaphore from an unauthenticated burst (the API has no auth).
 limit_req_zone $binary_remote_addr zone=synth:10m rate=2r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 

@@ -33,10 +33,13 @@ class AppError(Exception):
     code: str = "internal_error"
     title: str = "Internal Server Error"
 
-    def __init__(self, message: str, detail: str | None = None) -> None:
+    def __init__(
+        self, message: str, detail: str | None = None, headers: dict[str, str] | None = None
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.detail = detail
+        self.headers = headers  # extra response headers, e.g. Retry-After
 
 
 class RequestValidationFailed(AppError):
@@ -49,12 +52,6 @@ class VoiceNotFound(AppError):
     status_code = 404
     code = "voice_not_found"
     title = "Voice Not Found"
-
-
-class UnsupportedFormat(AppError):
-    status_code = 415
-    code = "unsupported_format"
-    title = "Unsupported Format"
 
 
 class VoiceLanguageUnsupported(AppError):
@@ -105,6 +102,7 @@ def _problem_response(
     title: str,
     detail: str | None = None,
     errors: list[dict[str, Any]] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     body = ProblemDetail(
         type=type_,
@@ -118,6 +116,7 @@ def _problem_response(
         status_code=status,
         content=body.model_dump(exclude_none=True),
         media_type=PROBLEM_MEDIA_TYPE,
+        headers=headers,
     )
 
 
@@ -128,7 +127,9 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
         detail = f"{exc.message}: {exc.detail}" if exc.detail else exc.message
-        return _problem_response(request, exc.status_code, ERROR_BASE + exc.code, exc.title, detail)
+        return _problem_response(
+            request, exc.status_code, ERROR_BASE + exc.code, exc.title, detail, headers=exc.headers
+        )
 
     @app.exception_handler(HTTPException)
     async def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:

@@ -72,6 +72,6 @@ jobs:
               chmod 600 elevenlabs.env
             fi
             docker compose pull app
-            docker compose up -d --no-build app
+            docker compose up -d --no-build --wait --wait-timeout 720 app
             docker compose restart nginx
             docker image prune -f
