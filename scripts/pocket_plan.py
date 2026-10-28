@@ -23,7 +23,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.providers.voice_loading import VoiceEntry, plan_install  # noqa: E402
 
-SUPPORTED = ("en", "fr", "it", "de", "es", "pt")
+SUPPORTED = ("en", "fr", "it", "de", "es", "pt", "nl")
 
 
 def _split(csv: str) -> list[str]:
@@ -138,7 +138,7 @@ def _selftest() -> None:
     # all + en,fr: every voice that can speak a selected language installs — incl.
     # non-native-primary ones (giovanni/lola/... speaking fr/en cross-language).
     a = plan(vj, "en,fr", "*:*")
-    assert a["mode"] == "all" and a["installed_voices"] == 26 and a["cross_pairs"] == 28, a
+    assert a["mode"] == "all" and a["installed_voices"] == 27 and a["cross_pairs"] == 30, a
 
     c = plan(vj, "en,fr", "alba:fr")
     assert c["mode"] == "custom" and c["cross_pairs"] == 1, c

@@ -27,6 +27,7 @@ server {
 
 server {
     listen 443 ssl;
+    http2 on;  # the browser reads ahead with several parallel /synthesize requests
     server_name ${DOMAIN};
 
     ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
@@ -45,10 +46,19 @@ server {
     # (fine — this is a low-latency in-network hop).
     resolver 127.0.0.11 valid=10s;
 
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-    add_header Referrer-Policy no-referrer always;
-    add_header Strict-Transport-Security "max-age=31536000" always;
+    include /etc/nginx/snippets/security-headers.conf;
+
+    # nginx answers its own rate-limit 429s before the app (and its CORS layer) sees the request.
+    error_page 429 = @rate_limited;
+    location @rate_limited {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Access-Control-Allow-Origin $cors_allow_origin always;
+        add_header Access-Control-Expose-Headers "Retry-After" always;
+        add_header Vary Origin always;
+        add_header Retry-After 1 always;
+        default_type application/problem+json;
+        return 429 '{"type":"about:blank","title":"Too Many Requests","status":429,"detail":"Rate limit exceeded."}';
+    }
 
     # App serves no static files today; costs nothing to block dotfiles anyway.
     location ~ /\. {
@@ -64,23 +74,26 @@ server {
     # requests on a hard refresh) could trip nginx's built-in 503 rate-limit
     # rejection well before actually threatening the synthesis backend.
     location = /synthesize {
-        limit_except POST {
+        # OPTIONS: CORS preflight for the browser demo (JSON POST).
+        limit_except POST OPTIONS {
             deny all;
         }
 
         limit_req zone=synth burst=4 nodelay;
         limit_conn perip 10;
+        # 429 (not nginx's default 503) so clients treat a rate limit as "slow down", not an outage.
+        limit_req_status 429;
+        limit_conn_status 429;
 
         include /etc/nginx/snippets/proxy-pass.conf;
 
-        # TTS inference is CPU-bound and can be slow (24-layer models, long text,
-        # emulated arch) — give synthesis more than the 120s default on other
+        # TTS inference is CPU-bound and can be slow (long text, emulated arch) — give synthesis more than the 120s default on other
         # routes so a legitimately long generation isn't cut off with a 504.
         proxy_read_timeout 300s;
     }
 
     location / {
-        limit_except GET POST HEAD {
+        limit_except GET POST HEAD OPTIONS {
             deny all;
         }
 

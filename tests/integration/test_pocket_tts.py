@@ -6,11 +6,17 @@ Skipped by default (CI uses fast suite only).
 
 import pytest
 
+from app.core.concurrency import init_semaphore
 from app.providers.pocket_tts import PocketTTSProvider
 from app.schemas.audio import SynthesisParams
 from tests.helpers.audio import assert_valid_pcm, pcm_duration_seconds
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _semaphore() -> None:
+    init_semaphore(1)  # synthesize() runs inference through the semaphore
 
 
 @pytest.fixture
@@ -79,3 +85,30 @@ async def test_longer_text_yields_more_audio(pocket: PocketTTSProvider) -> None:
     )
 )
 async def test_speed_affects_duration(pocket: PocketTTSProvider) -> None: ...
+
+
+async def test_default_models_speak_en_fr_nl(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config.settings import settings
+
+    monkeypatch.setattr(settings, "languages", "en,fr,nl")
+    p = PocketTTSProvider()
+    await p.load()
+    voices = await p.list_voices()
+    for lang, text in [
+        ("en", "Hello world."),
+        ("fr", "Bonjour le monde."),
+        ("nl", "Hallo wereld."),
+    ]:
+        v = next(v for v in voices if v.language.startswith(lang))
+        result = await p.synthesize(
+            SynthesisParams(
+                text=text,
+                ssml=False,
+                language=None,
+                voice_uri=v.identifier,
+                speed=1.0,
+                pitch=None,
+            )
+        )
+        assert_valid_pcm(result)
+        assert result.sample_rate == 24000

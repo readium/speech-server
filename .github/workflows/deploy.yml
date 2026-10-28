@@ -58,6 +58,8 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           envs: DOTENV_B64,POCKET_ENV_B64,ELEVENLABS_ENV_B64
+          # Default is 10m; the script waits up to 12m for readiness (plus the image pull).
+          command_timeout: 20m
           script: |
             set -euo pipefail
             cd ~/speech-server
@@ -72,6 +74,6 @@ jobs:
               chmod 600 elevenlabs.env
             fi
             docker compose pull app
-            docker compose up -d --no-build app
+            docker compose up -d --no-build --wait --wait-timeout 720 app
             docker compose restart nginx
             docker image prune -f

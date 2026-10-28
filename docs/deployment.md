@@ -63,13 +63,29 @@ once. Nginx serves TLS (see `nginx/` + `DOMAIN`).
 
 Adding a *new* var is the same flow — it's just part of the file. `entrypoint.sh`
 validates required vars at container start and fails fast if one is missing, so a
-bad/incomplete secret is caught immediately (the old container keeps running).
+bad/incomplete secret is caught immediately: the new container exits and the deploy job
+fails. (`docker compose up` has already replaced the old container by then, so the site is
+down until the secret is fixed and redeployed.)
 
 ## Notes
 
 - **Model/voice config** (`LANGUAGES`, `VOICE_LANGUAGES`) lives in `pocket-tts.env`.
   Changing it and redeploying triggers new downloads on next start (cached after);
-  reclaim disk for removed ones with `make prune-models-apply`.
+  reclaim disk for removed ones with `make prune-models` (dry run), then
+  `make prune-models-apply`, run on the VM. The same applies after a release that changes
+  models (e.g. the move to the Kyutai 4.x models): the new weights download on first start and
+  the old ones stay in the volume until pruned. The prune removes model folders that are no
+  longer used; an older-revision copy of a folder that is still in use stays (wasted disk only).
+- **Deploys wait for readiness:** the container healthcheck calls `/readyz` (models loaded),
+  and the deploy runs `docker compose up -d --wait --wait-timeout 720`. If models fail to
+  load (e.g. a Hugging Face download error) the deploy job fails instead of going green.
+  The first start after a model change downloads weights, so `/readyz` is 503 for a few minutes.
+- **CORS:** `CORS_ORIGINS` (in `.env`, so in the `DOTENV_B64` secret) lists the browser origins
+  allowed to call the API. It defaults to `https://readium.org` (the Readium Speech demos).
+  nginx lets `OPTIONS` through for the CORS preflight.
+- **ElevenLabs spend cap:** set `ELEVENLABS_DAILY_CHAR_LIMIT` in `elevenlabs.env`. `0` means
+  unlimited, and a production server logs a warning at startup if ElevenLabs is on with `0`.
+  The counter is kept on the weights volume, so redeploys don't reset it.
 - **Secrets vs non-secrets:** bundling both files as base64 secrets is the pragmatic
   choice for a single VM. To review config in PRs instead, graduate to a
   SOPS/age-encrypted env committed to the repo and decrypted at deploy.

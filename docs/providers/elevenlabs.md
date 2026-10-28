@@ -96,7 +96,7 @@ format (via the `/with-timestamps` endpoint).
   [pricing](https://elevenlabs.io/pricing/api) (Flash/Turbo $0.05 vs Multilingual/v3 $0.10 per 1K
   chars, so flash/turbo bill half → allow ~2× the characters for the same cost). Over the cap,
   `/synthesize` returns `429 rate_limited` until 00:00 UTC. The counter is a small JSON file
-  (`ELEVENLABS_USAGE_FILE`, default `/tmp/…`) shared across workers — point it at a volume to persist
+  (`ELEVENLABS_USAGE_FILE`; code default `/tmp/…`, `docker-compose.yml` puts it on the weights volume) shared across workers — outside Docker, point it at a persistent path
   across restarts. Set it in the wizard (**Manage provider → elevenlabs → Set daily limit**).
 - `controls` (service-wide, see `GET /service` — not repeated per voice): `speed` (maps to
   `voice_settings.speed`) and `boundary` supported; `pitch` and `ssml` are not (SSML tags are

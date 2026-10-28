@@ -38,7 +38,7 @@ re-encoding (the default, and fastest — no ffmpeg). The server can transcode o
 
 ## Languages & voices
 
-- **Native languages:** `en` `fr` `it` `de` `es` `pt`. English ships many voices; each other
+- **Native languages:** `en` `fr` `it` `de` `es` `pt` `nl`. English ships many voices; each other
   language ships one native voice.
 - **Cross-language:** any voice can also speak the languages it declares in `otherLanguages`,
   *if* that `(voice, language)` pair is installed (`VOICE_LANGUAGES`). A voice needs the target
@@ -50,23 +50,19 @@ re-encoding (the default, and fastest — no ffmpeg). The server can transcode o
 ## Constraints
 
 - CPU only; torch ≥ 2.5 CPU build. Throughput scales by worker processes.
-- **Model variant:** most languages ship both a fast/small **6-layer** model and a slower/bigger
-  higher-quality **24-layer** (`_24l`) one. We default to **6-layer** everywhere it exists.
-  French is the exception — pocket-tts ships only a 24-layer French, so `fr` is always 24-layer.
+- **Models:** one model per language, pinned in `_LANG_MODEL` (`app/providers/pocket_tts.py`),
+  all from pocket-tts ≥ 4.0. The older 24-layer (`_24l`) models are not supported.
 
-  | Lang | 6-layer | 24-layer | Used |
+  | Lang | Model | Layers | Download |
   |---|---|---|---|
-  | `en` | `english` | — | 6-layer |
-  | `fr` | — | `french_24l` | **24-layer (only option)** |
-  | `it` | `italian` | `italian_24l` | 6-layer |
-  | `de` | `german` | `german_24l` | 6-layer |
-  | `es` | `spanish` | `spanish_24l` | 6-layer |
-  | `pt` | `portuguese` | `portuguese_24l` | 6-layer |
+  | `en` | `english_18m_2026-10` (Kyutai 18.2M flagship) | 8 (d_model 512) | ~111 MB |
+  | `fr` | `french` | 6 | ~219 MB |
+  | `it` | `italian` | 6 | ~219 MB |
+  | `de` | `german` | 6 | ~219 MB |
+  | `es` | `spanish` | 6 | ~219 MB |
+  | `pt` | `portuguese` | 6 | ~219 MB |
+  | `nl` | `dutch` | 6 | ~219 MB |
 
-  (This is why you see `french_24l` but plain `spanish`/`german` — not an inconsistency; French
-  has no 6-layer.) The mapping lives in `_LANG_MODEL` (`app/providers/pocket_tts.py`). Making the
-  6l/24l choice user-selectable per language is **deferred** pending need — see the follow-up
-  issue.
 - Each model uses ~2 CPU cores via an internal generate→decode pipeline and pins torch to a
   single intra-op thread itself (on import) — so we don't set `torch.set_num_threads()`. Give
   the box more cores by running more workers, not more threads per model.

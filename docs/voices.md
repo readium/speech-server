@@ -1,6 +1,6 @@
 # Voices
 
-26 voice identities, each declared **once** — not duplicated per language. A voice has one
+27 voice identities, each declared **once** — not duplicated per language. A voice has one
 primary `language` and, optionally, `otherLanguages` it's also capable of speaking. The
 identifier has no language segment: it's always `urn:readium:tts:pocket:<name>`, and which
 language to speak is chosen at request time via `SynthesizeRequest.language`.
@@ -9,7 +9,7 @@ language to speak is chosen at request time via `SynthesizeRequest.language`.
 urn:readium:tts:pocket:alba    # one identifier for Alba, in any installed language
 ```
 
-The 26 voice identities, sourced from [kyutai/tts-voices](https://huggingface.co/kyutai/tts-voices):
+The 27 voice identities, sourced from [kyutai/tts-voices](https://huggingface.co/kyutai/tts-voices):
 
 | Voice | Gender | Origin |
 |---|---|---|
@@ -20,9 +20,9 @@ The 26 voice identities, sourced from [kyutai/tts-voices](https://huggingface.co
 | cosette | female | Expresso dataset (CC BY-NC 4.0) |
 | jean | male | EARS dataset (CC BY-NC 4.0) |
 | estelle | female | Unmute production voices |
-| giovanni, lola, juergen, rafael | mixed | Kyutai (language reference voices) |
+| giovanni, lola, juergen, rafael, daan | mixed | Kyutai (language reference voices; `daan` is the Dutch one) |
 
-Supported language codes: `en`, `fr`, `it`, `de`, `es`, `pt` — derived directly from PocketTTS model names.
+Supported language codes: `en`, `fr`, `it`, `de`, `es`, `pt`, `nl` — derived directly from PocketTTS model names.
 
 ## Cross-language voices
 
@@ -52,7 +52,7 @@ languages without repeating it per voice.
 
 PocketTTS pre-computes voice embeddings per voice per language (stored as `.safetensors` files
 under `kyutai/pocket-tts-without-voice-cloning`), sized by the target language's model:
-~5–8 MB into the 6-layer `en`/`it`/`de`/`es`/`pt` models, ~24–33 MB into the 24-layer `fr`. The embedding is warmed once at
+~5–8 MB into each language model. The embedding is warmed once at
 model-load time — no per-request cloning overhead — but only for the (voice, language) pairs
 `VOICE_LANGUAGES` and `LANGUAGES` actually call for. Unused language weights can be reclaimed
 from the Docker volume with `scripts/prune_weights.py` — see [Configuration → disk space](configuration.md).

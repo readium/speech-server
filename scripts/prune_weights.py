@@ -9,11 +9,12 @@ stays; anything re-added later re-downloads from the HF cache on next start.
 
 PocketTTS caches everything — base model, tokenizer, and per-voice embeddings —
 under `languages/<lang>/` inside two HuggingFace repos (`kyutai/pocket-tts` and
-`kyutai/pocket-tts-without-voice-cloning`), sharing one snapshot revision per
-repo (confirmed by reading pocket_tts's own config/*.yaml and utils/utils.py —
-every language config references the same two revision hashes). That makes
-per-language pruning safe: each language's files live under one exclusive path
-prefix, distinct from every other language's.
+`kyutai/pocket-tts-without-voice-cloning`). Revisions are NOT uniform: with pocket-tts 4.x
+the model, tokenizer and embedding files of one language are pinned to different revisions, and
+older pocket-tts versions leave older snapshots in the cache. Pruning is therefore by language
+folder name across every snapshot: it removes folders no longer in the install plan (e.g. the old
+`english`, `french_24l`) but keeps a kept folder's older-revision copy (wasted disk, never loaded).
+Each language's files live under one exclusive path prefix, distinct from every other language's.
 
 Content-addressed HF cache layout means each snapshot file is a symlink into
 `blobs/<sha256>`. Before deleting a blob, this script confirms no OTHER

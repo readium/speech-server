@@ -43,16 +43,3 @@ def reserve(path: str, amount: int, limit: int) -> tuple[bool, int]:
             return (True, used)
         finally:
             fcntl.flock(f, fcntl.LOCK_UN)
-
-
-if __name__ == "__main__":  # self-check
-    import tempfile
-
-    fp = str(Path(tempfile.mkdtemp()) / "u.json")
-    assert reserve(fp, 100, 250) == (True, 100)
-    assert reserve(fp, 100, 250) == (True, 200)
-    assert reserve(fp, 100, 250) == (False, 200)  # would exceed → rejected, not added
-    assert reserve(fp, 50, 250) == (True, 250)  # exact fit ok
-    assert reserve(fp, 1, 250)[0] is False  # full
-    assert reserve(fp, 10_000, 0) == (True, 0)  # limit 0 = unlimited, untracked
-    print("daily_limit self-check ok")

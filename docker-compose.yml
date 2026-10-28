@@ -12,6 +12,8 @@ services:
         required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
+      # On the weights volume so the daily-spend counter survives redeploys (default is /tmp).
+      - ELEVENLABS_USAGE_FILE=${ELEVENLABS_USAGE_FILE:-/weights/elevenlabs_usage.json}
     volumes:
       - weights_cache:/weights
     networks:
@@ -27,6 +29,7 @@ services:
       - "443:443"
     environment:
       - DOMAIN=${DOMAIN:-localhost}
+      - NGINX_CORS_ORIGIN=${NGINX_CORS_ORIGIN:-https://readium.org}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/snippets:/etc/nginx/snippets:ro

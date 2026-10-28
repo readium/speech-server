@@ -17,7 +17,7 @@ Designed to pair with [Readium Speech](https://github.com/readium/speech), Readi
 |---|---|
 | **API** | `GET /service` · `GET /voices` · `POST /synthesize` |
 | **Providers** | [PocketTTS](docs/providers/pocket.md) (local) · [ElevenLabs](docs/providers/elevenlabs.md) (hosted) |
-| **Languages** | English · French · Italian · German · Spanish · Portuguese |
+| **Languages** | English · French · Italian · German · Spanish · Portuguese · Dutch |
 | **Formats** | WAV (default) · MP3 · Opus |
 | **Word boundaries** | ElevenLabs (word-level timing marks) |
 | **Deployment** | Docker · CPU-only · Single named volume for model weights |
@@ -46,7 +46,7 @@ curl -s -X POST http://localhost:8000/synthesize \
   -o /tmp/speech.wav && open /tmp/speech.wav
 ```
 
-> **First start** downloads the selected language models (~240 MB each) into a persistent Docker volume. Every restart after that is instant — models are already cached.
+> **First start** downloads the selected language models (~110–220 MB each) into a persistent Docker volume. Every restart after that is instant — models are already cached.
 
 ---
 

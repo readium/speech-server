@@ -4,7 +4,7 @@
     "originalName": "alba",
     "identifier": "urn:readium:tts:pocket:alba",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -13,7 +13,7 @@
     "originalName": "anna",
     "identifier": "urn:readium:tts:pocket:anna",
     "language": "en",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -22,7 +22,7 @@
     "originalName": "azelma",
     "identifier": "urn:readium:tts:pocket:azelma",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -31,7 +31,7 @@
     "originalName": "bill_boerst",
     "identifier": "urn:readium:tts:pocket:bill-boerst",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -40,7 +40,7 @@
     "originalName": "caro_davy",
     "identifier": "urn:readium:tts:pocket:caro-davy",
     "language": "en-GB",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -49,7 +49,7 @@
     "originalName": "charles",
     "identifier": "urn:readium:tts:pocket:charles",
     "language": "en",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -58,7 +58,7 @@
     "originalName": "cosette",
     "identifier": "urn:readium:tts:pocket:cosette",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -67,7 +67,7 @@
     "originalName": "eponine",
     "identifier": "urn:readium:tts:pocket:eponine",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -76,7 +76,7 @@
     "originalName": "eve",
     "identifier": "urn:readium:tts:pocket:eve",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -85,7 +85,7 @@
     "originalName": "fantine",
     "identifier": "urn:readium:tts:pocket:fantine",
     "language": "en",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -94,7 +94,7 @@
     "originalName": "george",
     "identifier": "urn:readium:tts:pocket:george",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -103,7 +103,7 @@
     "originalName": "jane",
     "identifier": "urn:readium:tts:pocket:jane",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -112,7 +112,7 @@
     "originalName": "javert",
     "identifier": "urn:readium:tts:pocket:javert",
     "language": "en-US",
-    "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -121,7 +121,7 @@
     "originalName": "jean",
     "identifier": "urn:readium:tts:pocket:jean",
     "language": "en-US",
-    "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -130,7 +130,7 @@
     "originalName": "marius",
     "identifier": "urn:readium:tts:pocket:marius",
     "language": "en-US",
-    "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr-CA", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -139,7 +139,7 @@
     "originalName": "mary",
     "identifier": "urn:readium:tts:pocket:mary",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -148,7 +148,7 @@
     "originalName": "michael",
     "identifier": "urn:readium:tts:pocket:michael",
     "language": "en-US",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -157,7 +157,7 @@
     "originalName": "paul",
     "identifier": "urn:readium:tts:pocket:paul",
     "language": "en-GB",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -166,7 +166,7 @@
     "originalName": "peter_yearsley",
     "identifier": "urn:readium:tts:pocket:peter-yearsley",
     "language": "en",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -175,7 +175,7 @@
     "originalName": "stuart_bell",
     "identifier": "urn:readium:tts:pocket:stuart-bell",
     "language": "en-GB",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -184,7 +184,7 @@
     "originalName": "vera",
     "identifier": "urn:readium:tts:pocket:vera",
     "language": "en",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -193,7 +193,7 @@
     "originalName": "estelle",
     "identifier": "urn:readium:tts:pocket:estelle",
     "language": "fr-FR",
-    "otherLanguages": ["en", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["en", "es", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -202,7 +202,7 @@
     "originalName": "giovanni",
     "identifier": "urn:readium:tts:pocket:giovanni",
     "language": "it",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -211,7 +211,7 @@
     "originalName": "juergen",
     "identifier": "urn:readium:tts:pocket:juergen",
     "language": "de",
-    "otherLanguages": ["fr", "es", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "es", "de", "it", "pt-PT", "nl"],
     "gender": "male",
     "quality": "veryHigh"
   },
@@ -220,7 +220,7 @@
     "originalName": "lola",
     "identifier": "urn:readium:tts:pocket:lola",
     "language": "es",
-    "otherLanguages": ["fr", "en", "de", "it", "pt-PT"],
+    "otherLanguages": ["fr", "en", "de", "it", "pt-PT", "nl"],
     "gender": "female",
     "quality": "veryHigh"
   },
@@ -229,8 +229,16 @@
     "originalName": "rafael",
     "identifier": "urn:readium:tts:pocket:rafael",
     "language": "pt-PT",
-    "otherLanguages": ["fr", "en", "de", "it", "es"],
+    "otherLanguages": ["fr", "en", "de", "it", "es", "nl"],
     "gender": "male",
+    "quality": "veryHigh"
+  },
+  {
+    "name": "Daan",
+    "originalName": "daan",
+    "identifier": "urn:readium:tts:pocket:daan",
+    "language": "nl",
+    "otherLanguages": ["fr", "en", "es", "de", "it", "pt-PT"],
     "quality": "veryHigh"
   }
 ]

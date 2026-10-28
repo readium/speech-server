@@ -9,5 +9,9 @@ services:
     volumes:
       - ./app:/app/app
       - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      # `uv sync --frozen --dev` (make *-docker targets) reads these; the image only has pyproject.
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./uv.lock:/app/uv.lock
     environment:
       - RELOAD=true

@@ -2,14 +2,20 @@
 
 server_tokens off;
 
+# The one browser origin allowed on nginx's own responses (rate-limit 429s). The app's CORS_ORIGINS
+# (a list) covers everything the app answers; keep NGINX_CORS_ORIGIN equal to its main entry.
+map $http_origin $cors_allow_origin {
+    default "";
+    "${NGINX_CORS_ORIGIN}" $http_origin;
+}
+
 client_header_timeout 10s;
 client_body_timeout 10s;
 keepalive_timeout 15s;
 large_client_header_buffers 2 1k;
 
-# Sized around app/config/settings.py's max_concurrent_syntheses default (2):
-# protects a tiny backend semaphore from an unauthenticated burst
-# (API_KEY_ENABLED defaults false).
+# Sized around app/config/settings.py's max_concurrent_syntheses default (1):
+# protects a tiny backend semaphore from an unauthenticated burst (the API has no auth).
 limit_req_zone $binary_remote_addr zone=synth:10m rate=2r/s;
 limit_conn_zone $binary_remote_addr zone=perip:10m;
 

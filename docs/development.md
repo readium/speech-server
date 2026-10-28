@@ -11,7 +11,7 @@
 | `make start` | Start production stack (detached) |
 | `make stop` | Stop containers |
 | `make logs` | Tail app logs |
-| `make test-docker` | Fast test suite — no models needed |
+| `make test-docker` | Fast test suite — no models needed (the `*-docker` targets bypass the entrypoint and `uv sync` the dev tools into the container first; the dev stack mounts `app/`, `tests/`, `scripts/`, `pyproject.toml` and `uv.lock`) |
 | `make test-integration-docker` | Integration tests — requires models in volume |
 | `make ci-docker` | Lint + format check + typecheck + tests |
 | `make lint-docker` | `ruff check` |
@@ -51,14 +51,14 @@ Client
        └─ Synthesizer
             ├─ validate text length + content
             ├─ resolve voice identifier → (provider, Voice)  (VoiceCatalog)
-            ├─ circuit breaker check  ← per-provider, 503 fast if open
+            ├─ circuit breaker check  ← per-provider, 503 fast if open (one trial call when half-open)
             ├─ provider.synthesize()  ← runs in thread pool, bounded by semaphore
             │    └─ TTSModel.generate_audio()  — CPU inference
             └─ encode PCM → mp3/opus  (ffmpeg driver)  or  wrap → wav (default)
 ```
 
 - Routes are `async`; all CPU-bound inference runs off the event loop via `anyio.to_thread.run_sync`
-- A semaphore (`MAX_CONCURRENT_SYNTHESES`) prevents model thrashing under concurrent load
+- A semaphore (`MAX_CONCURRENT_SYNTHESES`) prevents model thrashing under concurrent load; a request that can't get a slot within `SYNTHESIS_QUEUE_TIMEOUT_SECONDS` gets `429` with `Retry-After`
 - A per-provider circuit breaker (`CIRCUIT_BREAKER_*`) fails fast instead of repeatedly hitting a broken provider
 - Model throughput scales by adding worker processes (`WORKERS`), not threads
 - Model weights live in a named Docker volume — downloaded once, instant on every subsequent start
