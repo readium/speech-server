@@ -814,8 +814,12 @@ async function showMetrics(blob, serverMs) {
    navigator.play() from idle calls engine.speak(), which synthesizes again (new /synthesize
    request). Reschedule the kept buffers instead. Same private-field coupling as seekTo(). */
 function replayLoaded() {
-  // Only a single-utterance load keeps the whole clip: a multi-utterance queue overwrites the chunks.
-  if (!chunkRanges().length || !engine['audioContext'] || engine.getUtteranceCount() !== 1) return false;
+  // Only a single-utterance load keeps the whole clip (a multi-utterance queue overwrites the
+  // chunks), and only while its first chunk is still there: seekTo() drops chunks before the seek
+  // point, and replaying the remaining tail as if it were the clip would be wrong.
+  const ranges = chunkRanges();
+  if (!ranges.length || !engine['audioContext'] || engine.getUtteranceCount() !== 1) return false;
+  if (ranges[0].entry.chunk.textOffset) return false;
   seekTo(0);
   speechNavigator['setNavigatorState']('playing');
   engine['setState']('playing');

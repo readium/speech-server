@@ -2,6 +2,13 @@
 
 server_tokens off;
 
+# The one browser origin allowed on nginx's own responses (rate-limit 429s). The app's CORS_ORIGINS
+# (a list) covers everything the app answers; keep NGINX_CORS_ORIGIN equal to its main entry.
+map $http_origin $cors_allow_origin {
+    default "";
+    "${NGINX_CORS_ORIGIN}" $http_origin;
+}
+
 client_header_timeout 10s;
 client_body_timeout 10s;
 keepalive_timeout 15s;

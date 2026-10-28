@@ -46,10 +46,19 @@ server {
     # (fine — this is a low-latency in-network hop).
     resolver 127.0.0.11 valid=10s;
 
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-    add_header Referrer-Policy no-referrer always;
-    add_header Strict-Transport-Security "max-age=31536000" always;
+    include /etc/nginx/snippets/security-headers.conf;
+
+    # nginx answers its own rate-limit 429s before the app (and its CORS layer) sees the request.
+    error_page 429 = @rate_limited;
+    location @rate_limited {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Access-Control-Allow-Origin $cors_allow_origin always;
+        add_header Access-Control-Expose-Headers "Retry-After" always;
+        add_header Vary Origin always;
+        add_header Retry-After 1 always;
+        default_type application/problem+json;
+        return 429 '{"type":"about:blank","title":"Too Many Requests","status":429,"detail":"Rate limit exceeded."}';
+    }
 
     # App serves no static files today; costs nothing to block dotfiles anyway.
     location ~ /\. {

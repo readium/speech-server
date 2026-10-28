@@ -75,3 +75,26 @@ async def test_busy_synthesize_returns_429_with_retry_after(
     assert resp.status_code == 429
     assert resp.headers["retry-after"] == "5"
     assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+async def test_unhandled_error_still_carries_cors_headers() -> None:
+    """Starlette answers a crash in its outermost layer, outside CORSMiddleware."""
+    from httpx import ASGITransport
+
+    from app.main import create_app
+
+    app = create_app()
+
+    @app.get("/boom")
+    async def boom() -> None:
+        raise RuntimeError("boom")
+
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        allowed = await c.get("/boom", headers={"Origin": _DEMO})
+        other = await c.get("/boom", headers={"Origin": "https://evil.example"})
+    assert allowed.status_code == 500
+    assert allowed.headers["access-control-allow-origin"] == _DEMO
+    assert allowed.headers["content-type"].startswith("application/problem+json")
+    assert other.status_code == 500
+    assert "access-control-allow-origin" not in other.headers

@@ -58,6 +58,8 @@ jobs:
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
           envs: DOTENV_B64,POCKET_ENV_B64,ELEVENLABS_ENV_B64
+          # Default is 10m; the script waits up to 12m for readiness (plus the image pull).
+          command_timeout: 20m
           script: |
             set -euo pipefail
             cd ~/speech-server

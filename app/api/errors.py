@@ -8,6 +8,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException
 
+from app.config.settings import settings
+
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 ERROR_BASE = "https://readium.org/speech-server/error#"
 
@@ -123,6 +125,15 @@ def _problem_response(
 # --- error handlers ---
 
 
+def _cors_headers(request: Request) -> dict[str, str]:
+    """ServerErrorMiddleware sits outside CORSMiddleware, so a 500 would reach an allowed browser
+    origin without CORS headers (it would see a network error, not our Problem Details)."""
+    origin = request.headers.get("origin")
+    if origin and origin in settings.cors_origin_list:
+        return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"}
+    return {}
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
@@ -160,4 +171,5 @@ def register_error_handlers(app: FastAPI) -> None:
             ERROR_BASE + AppError.code,
             AppError.title,
             "An unexpected error occurred.",
+            headers=_cors_headers(request),
         )

@@ -81,6 +81,7 @@ only ever *adds* cross-language support:
 | `API_KEY_ENABLED` | `false` | Not implemented. `true` is rejected at startup (no route checks a key, so it would leave the API open) |
 | `API_KEY` | _(empty)_ | Reserved |
 | `CORS_ORIGINS` | `https://readium.org` | Comma-separated browser origins (scheme + host, no path) allowed to call the API cross-origin. Default is the Readium Speech demos (`https://readium.org/speech/demo/`). Empty disables CORS. nginx also lets `OPTIONS` through for the preflight |
+| `NGINX_CORS_ORIGIN` | `https://readium.org` | Read by the nginx container only (compose `environment`). The one browser origin allowed on nginx's own rate-limit `429` responses, which are sent before the app's CORS layer. Keep it equal to the main entry of `CORS_ORIGINS` |
 | `SYNTHESIS_QUEUE_TIMEOUT_SECONDS` | `30` | How long a request waits for a free synthesis slot before `429` "busy" |
 | `LOG_LEVEL` | `INFO` | `DEBUG` · `INFO` · `WARNING` · `ERROR` |
 | `PORT` | `8000` | Listen port |

@@ -100,8 +100,11 @@ class Synthesizer:
             # Only provider OUTAGES (5xx) trip the breaker. Client/quota errors — 429 rate
             # limit (incl. the daily budget), 404 unsupported voice — are not provider failures
             # and must not open the breaker for everyone.
-            if breaker is not None and exc.status_code >= 500:
-                breaker.record_failure()
+            if breaker is not None:
+                if exc.status_code >= 500:
+                    breaker.record_failure()
+                else:
+                    breaker.record_neutral()
             raise
         else:
             if breaker is not None:

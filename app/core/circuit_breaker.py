@@ -38,6 +38,11 @@ class CircuitBreaker:
         self._failures = 0
         self._state = _State.CLOSED
 
+    def record_neutral(self) -> None:
+        """The call ended with a client/quota error, not a provider verdict: free a half-open
+        trial slot without closing or re-opening the breaker."""
+        self._probe_at = float("-inf")
+
     def record_failure(self) -> None:
         self._failures += 1
         if self._state is _State.HALF_OPEN or self._failures >= self._failure_threshold:

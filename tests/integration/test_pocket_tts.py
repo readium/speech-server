@@ -14,9 +14,13 @@ from tests.helpers.audio import assert_valid_pcm, pcm_duration_seconds
 pytestmark = pytest.mark.integration
 
 
+@pytest.fixture(autouse=True)
+def _semaphore() -> None:
+    init_semaphore(1)  # synthesize() runs inference through the semaphore
+
+
 @pytest.fixture
 async def pocket() -> PocketTTSProvider:
-    init_semaphore(1)  # synthesize() runs inference through the semaphore
     p = PocketTTSProvider()
     await p.load()
     return p

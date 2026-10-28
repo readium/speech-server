@@ -87,3 +87,14 @@ def test_half_open_allows_one_trial_at_a_time(monkeypatch) -> None:  # type: ign
     assert b.allow() is False  # everyone else waits for its result
     now[0] = 20
     assert b.allow() is True  # a trial that never reported is retried after recovery_seconds
+
+
+def test_neutral_result_frees_the_half_open_trial(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    now = [0.0]
+    monkeypatch.setattr(cb_mod.time, "monotonic", lambda: now[0])
+    b = CircuitBreaker(failure_threshold=1, recovery_seconds=10)
+    b.record_failure()
+    now[0] = 10
+    assert b.allow() is True  # the trial
+    b.record_neutral()  # it ended in a 404/429: no verdict on the provider
+    assert b.allow() is True  # the next request is the new trial, not a 503 for 10 s
